@@ -1,0 +1,684 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>設計を Dart で読み解く — POS レジ 対訳ノート</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Zen+Old+Mincho:wght@600;700;900&family=Zen+Kaku+Gothic+New:wght@400;500;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
+<style>
+  :root{
+    --paper:#faf7f1;
+    --paper-2:#fffefb;
+    --ink:#26221e;
+    --ink-soft:#574f46;
+    --muted:#8d8377;
+    --line:#e6ddce;
+    --teal:#116b64;
+    --teal-deep:#0c4f4a;
+    --teal-soft:#dceae8;
+    --amber:#c98223;
+    --amber-soft:#f6e7cd;
+    --rose:#b9543f;
+    /* コードパネル */
+    --code-bg:#1b222e;
+    --code-fg:#d7dde8;
+    --code-dim:#7c879c;
+    --code-mark:rgba(201,130,35,.28);
+    --code-mark-line:rgba(201,130,35,.9);
+    --radius:16px;
+    --shadow:0 14px 36px -18px rgba(38,34,30,.4);
+  }
+  *{box-sizing:border-box;}
+  html{scroll-behavior:smooth;}
+  body{
+    margin:0;font-family:"Zen Kaku Gothic New",sans-serif;color:var(--ink);
+    background-color:var(--paper);
+    background-image:radial-gradient(circle at 1px 1px, rgba(38,34,30,.045) 1px, transparent 0);
+    background-size:24px 24px;
+    line-height:1.9;-webkit-font-smoothing:antialiased;overflow-x:hidden;
+  }
+  h1,h2,h3,h4,.mincho{font-family:"Zen Old Mincho",serif;font-weight:700;line-height:1.45;}
+  code,pre,.mono{font-family:"JetBrains Mono",monospace;}
+  .wrap{max-width:1140px;margin:0 auto;padding:0 26px;}
+  section{padding:64px 0;}
+
+  #progress{position:fixed;top:0;left:0;height:3px;width:0;z-index:60;
+    background:linear-gradient(90deg,var(--teal),var(--amber));transition:width .1s linear;}
+
+  /* ===== Hero ===== */
+  .hero{padding:88px 0 40px;border-bottom:1.5px solid var(--line);position:relative;}
+  .hero .eyebrow{font-family:"JetBrains Mono";font-size:.8rem;letter-spacing:.22em;text-transform:uppercase;
+    color:var(--teal);font-weight:600;}
+  .hero h1{font-size:clamp(2.1rem,5vw,3.5rem);font-weight:900;margin:18px 0 14px;letter-spacing:.01em;}
+  .hero h1 .bar{color:var(--teal-deep);border-bottom:.16em solid var(--amber-soft);}
+  .hero .lead{font-size:1.12rem;color:var(--ink-soft);max-width:62ch;}
+  .hero .meta-row{margin-top:26px;display:flex;flex-wrap:wrap;gap:10px;font-size:.86rem;}
+  .pill{font-family:"JetBrains Mono";background:var(--paper-2);border:1.5px solid var(--line);
+    border-radius:8px;padding:6px 12px;color:var(--ink-soft);}
+  .pill b{color:var(--teal-deep);}
+
+  /* ===== Dart の性格 ===== */
+  .kicker{font-family:"JetBrains Mono";font-size:.78rem;letter-spacing:.18em;text-transform:uppercase;color:var(--amber);font-weight:600;}
+  .h-sec{font-size:clamp(1.6rem,3.4vw,2.3rem);margin:8px 0 6px;}
+  .sub{color:var(--ink-soft);max-width:64ch;margin:0 0 8px;}
+  .traits{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,280px),1fr));gap:16px;margin-top:30px;}
+  .trait{background:var(--paper-2);border:1.5px solid var(--line);border-radius:var(--radius);padding:22px 24px;
+    position:relative;overflow:hidden;}
+  .trait::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--teal);}
+  .trait h3{margin:0 0 6px;font-size:1.08rem;display:flex;align-items:center;gap:10px;}
+  .trait h3 .ic{flex:none;width:30px;height:30px;display:grid;place-items:center;border-radius:8px;background:var(--teal-soft);color:var(--teal-deep);}
+  .trait p{margin:0;font-size:.94rem;color:var(--ink-soft);}
+  .trait .ex{margin-top:10px;font-family:"JetBrains Mono";font-size:.8rem;background:#f0ece2;border-radius:7px;padding:7px 10px;color:#4a443b;display:inline-block;}
+
+  /* ===== 凡例 ===== */
+  .legend{margin-top:40px;background:var(--teal-soft);border:1.5px solid #c4ddd8;border-radius:var(--radius);padding:22px 26px;}
+  .legend h3{margin:0 0 12px;font-size:1.05rem;}
+  .legend ol{margin:0;padding-left:1.3em;}
+  .legend li{margin:4px 0;color:var(--ink-soft);font-size:.95rem;}
+  .legend li b{color:var(--ink);font-family:"Zen Old Mincho";}
+
+  /* ===== 部位カード ===== */
+  .piece{border-top:1.5px solid var(--line);}
+  .piece-head{display:grid;grid-template-columns:auto 1fr auto;gap:20px;align-items:baseline;margin-bottom:26px;}
+  .pno{font-family:"Zen Old Mincho";font-weight:900;font-size:2.4rem;color:var(--amber);line-height:1;}
+  .piece-head h2{font-size:clamp(1.4rem,3vw,2rem);margin:0;}
+  .piece-head .aim{margin:6px 0 0;color:var(--ink-soft);max-width:60ch;}
+  .piece-head .file{font-size:.78rem;color:var(--muted);white-space:nowrap;align-self:center;}
+  @media(max-width:680px){.piece-head{grid-template-columns:auto 1fr;}.piece-head .file{display:none;}}
+
+  .cols{display:grid;grid-template-columns:1fr 1.25fr;gap:24px;align-items:stretch;}
+  /* グリッド子は min-width:auto だと中の <pre> 長行で列が膨らみ崩れる。0 にして収める */
+  .cols > *{min-width:0;}
+  @media(max-width:900px){.cols{grid-template-columns:1fr;}}
+  .panel-label{font-family:"JetBrains Mono";font-size:.74rem;letter-spacing:.14em;text-transform:uppercase;
+    color:var(--muted);margin:0 0 10px;display:flex;align-items:center;gap:8px;}
+  .panel-label::before{content:"";width:18px;height:2px;background:var(--amber);}
+
+  .algo{background:var(--paper-2);border:1.5px solid var(--line);border-radius:var(--radius);padding:22px 24px;}
+  .algo ol{margin:0;padding-left:1.4em;counter-reset:step;}
+  .algo ol li{margin:0 0 12px;color:var(--ink-soft);}
+  .algo ol li::marker{color:var(--teal);font-family:"Zen Old Mincho";font-weight:700;}
+  .algo ol li b{color:var(--ink);}
+  .algo .note{margin-top:8px;font-size:.86rem;color:var(--muted);border-left:3px solid var(--line);padding-left:10px;}
+
+  /* コードパネル */
+  .code{display:flex;flex-direction:column;}
+  pre{margin:0;background:var(--code-bg);color:var(--code-fg);border-radius:var(--radius);
+    padding:20px 22px;overflow-x:auto;font-size:.83rem;line-height:1.7;flex:1;box-shadow:var(--shadow);
+    max-width:100%;-webkit-overflow-scrolling:touch;}
+  pre .cm{color:var(--code-dim);font-style:italic;}
+  /* 特徴トークンのハイライト＋番号 */
+  .tk{background:var(--code-mark);border-bottom:1.5px solid var(--code-mark-line);border-radius:3px;padding:0 .14em;}
+  .rf{display:inline-grid;place-items:center;min-width:1.25em;height:1.25em;padding:0 .15em;margin:0 .12em;
+    font-family:"JetBrains Mono";font-size:.66em;font-weight:700;border-radius:50%;
+    background:var(--amber);color:#1b222e;vertical-align:.18em;line-height:1;}
+  pre .rf{transform:translateY(-1px);}
+
+  /* 特徴解説 */
+  .feats{margin-top:22px;}
+  .feats > .panel-label{margin-bottom:14px;}
+  .fgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,320px),1fr));gap:14px;}
+  .f{background:var(--paper-2);border:1.5px solid var(--line);border-radius:12px;padding:16px 18px;
+    display:grid;grid-template-columns:auto 1fr;gap:12px;}
+  .f .rf{align-self:start;margin-top:3px;}
+  .f b{font-family:"Zen Old Mincho";font-size:1rem;}
+  .f b .t{font-family:"JetBrains Mono";font-size:.86em;background:#f0ece2;border-radius:5px;padding:1px 6px;color:var(--teal-deep);margin-left:4px;}
+  .f p{margin:5px 0 0;font-size:.9rem;color:var(--ink-soft);overflow-wrap:anywhere;}
+
+  /* ===== 4層リキャップ ===== */
+  .recap{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:28px;}
+  @media(max-width:760px){.recap{grid-template-columns:1fr 1fr;}}
+  .rc{padding:16px;border-radius:12px;border:1.5px solid var(--line);background:var(--paper-2);text-align:center;}
+  .rc .n{font-family:"Zen Old Mincho";font-weight:900;font-size:1.3rem;color:var(--amber);}
+  .rc h4{margin:4px 0 4px;font-size:1rem;}
+  .rc p{margin:0;font-size:.82rem;color:var(--ink-soft);}
+  .rc .mono{display:block;font-size:.72rem;color:var(--muted);margin-top:6px;}
+
+  footer{padding:48px 0 70px;text-align:center;color:var(--muted);font-size:.84rem;border-top:1.5px solid var(--line);}
+
+  .reveal{opacity:0;transform:translateY(22px);transition:opacity .7s cubic-bezier(.2,.7,.2,1),transform .7s cubic-bezier(.2,.7,.2,1);}
+  .reveal.in{opacity:1;transform:none;}
+
+  /* ===== スマホ ===== */
+  @media(max-width:560px){
+    body{line-height:1.8;}
+    .wrap{padding:0 16px;}
+    section{padding:44px 0;}
+    .hero{padding:60px 0 32px;}
+    .hero .lead{font-size:1.02rem;}
+    .pill{font-size:.78rem;}
+    .traits{gap:12px;margin-top:22px;}
+    .trait{padding:18px 18px;}
+    .legend{padding:18px 18px;}
+    .piece-head{gap:12px;margin-bottom:20px;}
+    .pno{font-size:1.9rem;}
+    .cols{gap:16px;}
+    .algo{padding:18px 18px;}
+    .algo ol{padding-left:1.2em;}
+    pre{padding:16px 14px;font-size:.76rem;line-height:1.65;border-radius:12px;}
+    .fgrid{gap:10px;}
+    .f{padding:14px 14px;gap:10px;}
+    .recap{gap:10px;}
+  }
+
+  @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto;}.reveal{opacity:1;transform:none;transition:none;}#progress{transition:none;}}
+</style>
+<noscript><style>.reveal{opacity:1;transform:none;}</style></noscript>
+</head>
+<body>
+<div id="progress" aria-hidden="true"></div>
+
+<!-- ================= Hero ================= -->
+<header class="hero">
+  <div class="wrap">
+    <span class="eyebrow">design ↔ algorithm ↔ Dart</span>
+    <h1>設計を <span class="bar">Dart</span> で読み解く</h1>
+    <p class="lead">POS レジの設計を一つずつ取り上げ、<b>「日本語で書いたアルゴリズム」</b>と<b>「実際の Dart コード」</b>を並べて対比します。同時に、その実装に現れる <b>Dart という言語の性格</b>を拾っていきます。コードを読んだことがなくても、左の日本語から右のコードへ橋を架けられるように。</p>
+    <div class="meta-row">
+      <span class="pill"><b>言語</b> Dart 3</span>
+      <span class="pill"><b>土台</b> Flutter (Web)</span>
+      <span class="pill"><b>保存</b> drift / SQLite</span>
+      <span class="pill"><b>読み方</b> 左=考え方 / 右=コード</span>
+    </div>
+  </div>
+</header>
+
+<!-- ================= Dart の性格 ================= -->
+<section>
+  <div class="wrap">
+    <p class="kicker reveal">まず全体像</p>
+    <h2 class="h-sec reveal">Dart ってどんな言語？</h2>
+    <p class="sub reveal">細部に入る前に、これから何度も出会う「Dart らしさ」を7つだけ。あとで各設計の中で実物を見ます。</p>
+    <div class="traits">
+      <div class="trait reveal"><h3><span class="ic"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7V4h16v3M9 20h6M12 4v16"/></svg></span>型があるが、推論もする</h3><p>変数や引数に型を付ける静的型付け。でも明らかな場合は推論してくれるので冗長になりすぎない。型のおかげで「渡し間違い」がコンパイル時に分かる。</p><span class="ex">final n = 8; // int と推論</span></div>
+      <div class="trait reveal"><h3><span class="ic"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></span>null 安全が標準</h3><p>「null かもしれない」型は <code>?</code> を付けた時だけ。付いていない型に null は入れられない。実行中の null クラッシュを、設計の段階で締め出す。</p><span class="ex">int? id;   String name; // name は null 不可</span></div>
+      <div class="trait reveal"><h3><span class="ic"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h18M3 6h18M3 18h18"/></svg></span>「式」で書ける</h3><p>switch や条件が<b>値を返す式</b>として書ける。分岐の結果をそのまま変数に入れられるので、短く・意図が直線的になる。</p><span class="ex">final c = switch(t){ ... };</span></div>
+      <div class="trait reveal"><h3><span class="ic"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3v18M5 8h11l-3-3M19 16H8l3 3"/></svg></span>非同期が言語に内蔵</h3><p><code>Future</code>（あとで届く1つの値）と <code>Stream</code>（流れ続ける値）が組み込み。<code>async/await</code> で「待つ」処理を普通の上から下のコードのように書ける。</p><span class="ex">final db = await open();</span></div>
+      <div class="trait reveal"><h3><span class="ic"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l3 7h7l-5.5 4 2 7L12 16l-6.5 4 2-7L2 9h7z"/></svg></span>不変（イミュータブル）志向</h3><p><code>final</code>/<code>const</code> が手軽で、一度作った値を変えない設計をしやすい。変えたいときは「一部だけ差し替えた新品」を作る（copyWith）。バグの温床＝うっかり書き換えを減らす。</p><span class="ex">final p2 = p.copyWith(taxRate: 10);</span></div>
+      <div class="trait reveal"><h3><span class="ic"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h10M4 18h7"/></svg></span>名前付き引数で読める呼び出し</h3><p>引数に名前を付けて渡せる（<code>required</code> で必須化）。UI のツリーや設定だらけの生成が、何を指定しているか一目で分かる。</p><span class="ex">Product(name: '弁当', taxRate: 8)</span></div>
+      <div class="trait reveal"><h3><span class="ic"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg></span>複数の値をまとめて返せる</h3><p>レコード（軽量なタプル）で、関数から複数の値を一度に返せる。受け取る側は分割代入でさっと展開。小さな「2つ組」をわざわざクラスにしなくてよい。</p><span class="ex">final (a, b) = loadDraft();</span></div>
+    </div>
+
+    <div class="legend reveal">
+      <h3>このノートの読み方</h3>
+      <ol>
+        <li><b>設計のねらい</b> … その部品が何を担うか（なぜ要るか）。</li>
+        <li><b>自然言語のアルゴリズム</b>（左）… 日本語の手順。プログラムを知らなくても追える。</li>
+        <li><b>Dart 実装</b>（右）… 実際のコード。<span class="mono">①②③</span> の付いた<span style="background:var(--amber-soft);border-radius:3px;padding:0 4px;">ハイライト</span>が、注目の言語機能。</li>
+        <li><b>ここで分かる Dart の特徴</b> … <span class="mono">①②③</span> に対応する解説。コードのその場所と結びつけて読む。</li>
+      </ol>
+    </div>
+  </div>
+</section>
+
+<!-- ================= 01 モデル ================= -->
+<section class="piece">
+  <div class="wrap reveal">
+    <div class="piece-head">
+      <span class="pno">01</span>
+      <div><h2>データの形 — 商品・明細・値引き</h2>
+      <p class="aim">アプリの土台は「データの形」。商品とは何を持つのか、カートの1行とは何かを、変わらない（不変な）型として定義する。</p></div>
+      <span class="file mono">lib/domain/</span>
+    </div>
+    <div class="cols">
+      <div class="algo">
+        <p class="panel-label">自然言語のアルゴリズム</p>
+        <ol>
+          <li>商品は <b>名前・税抜価格・税率(8か10)・カテゴリ</b>を持つ。保存前は ID がまだ無い。</li>
+          <li>一度作った商品は<b>勝手に書き換えない</b>。直したいときは別の新品を作る。</li>
+          <li>値引きは「<b>金額引き</b>」か「<b>率引き</b>」のどちらか＋数値。</li>
+          <li>カートの1行は <b>商品＋数量＋（あれば）単品値引き</b>。値引きは「無し」もありうる。</li>
+        </ol>
+        <p class="note">「無し」を許すかどうかを型で表すのがポイント。null を入れてよい所と、絶対入れない所を分ける。</p>
+      </div>
+      <div class="code">
+        <p class="panel-label">Dart 実装</p>
+<pre><code><span class="tk">enum</span><span class="rf">1</span> DiscountType { amount, percent }   <span class="cm">// 値引きの種類は2つだけ</span>
+
+class Discount {
+  <span class="tk">final</span><span class="rf">2</span> DiscountType type;
+  final int value;
+  <span class="tk">const</span><span class="rf">2</span> Discount(this.type, this.value);
+}
+
+class Product {
+  final int<span class="tk">?</span><span class="rf">3</span> id;        <span class="cm">// 未保存なら null（だから ? 付き）</span>
+  final String name;        <span class="cm">// ? 無し → null は入らない</span>
+  final int unitPriceExclTax;
+  final int taxRate;        <span class="cm">// 8 か 10</span>
+  final String category;
+  const Product({
+    this.id,
+    <span class="tk">required</span><span class="rf">4</span> this.name,
+    required this.unitPriceExclTax,
+    required this.taxRate,
+    required this.category,
+  });
+}</code></pre>
+      </div>
+    </div>
+    <div class="feats">
+      <p class="panel-label">ここで分かる Dart の特徴</p>
+      <div class="fgrid">
+        <div class="f"><span class="rf">1</span><div><b>列挙型<span class="t">enum</span></b><p>「取りうる値が決まっている」ものを型にする。<code>amount</code>/<code>percent</code> 以外は存在しえないので、打ち間違いや想定外の値が入らない。</p></div></div>
+        <div class="f"><span class="rf">2</span><div><b>不変<span class="t">final / const</span></b><p><code>final</code> は一度だけ代入＝後から書き換えない。<code>const</code> はコンパイル時に確定する定数オブジェクト。<b>変わらない</b>と決めるとバグが激減する。</p></div></div>
+        <div class="f"><span class="rf">3</span><div><b>null 安全<span class="t">int?</span></b><p><code>?</code> が付いた型だけ null を許す。<code>id</code> は「まだ無い」がありうるので <code>int?</code>、<code>name</code> は必ずある値なので <code>String</code>。<b>型で意図を語る。</b></p></div></div>
+        <div class="f"><span class="rf">4</span><div><b>名前付き＋必須<span class="t">{required}</span></b><p><code>{}</code> で囲むと名前付き引数。<code>required</code> で「省略不可」に。生成側が <code>Product(name: …, taxRate: …)</code> と読めるようになる。</p></div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= 02 単品値引き ================= -->
+<section class="piece">
+  <div class="wrap reveal">
+    <div class="piece-head">
+      <span class="pno">02</span>
+      <div><h2>単品値引き — 1行ぶんの計算</h2>
+      <p class="aim">明細1行の税抜額に値引きを適用する、純粋な計算。お金なので<b>小数を使わず整数の円</b>で、端数は切り捨てる。</p></div>
+      <span class="file mono">register_calc.dart</span>
+    </div>
+    <div class="cols">
+      <div class="algo">
+        <p class="panel-label">自然言語のアルゴリズム</p>
+        <ol>
+          <li>値引きが<b>無ければ</b>、そのままの金額を返す。</li>
+          <li><b>金額引き</b>なら、その額を引く。</li>
+          <li><b>率引き</b>なら「価格 × 率 ÷ 100」を計算し、<b>1円未満は切り捨て</b>て引く。</li>
+          <li>引きすぎてマイナスになったら <b>0</b> にする。</li>
+        </ol>
+        <p class="note">「÷して切り捨て」を1つの演算でやれるのが効くところ。</p>
+      </div>
+      <div class="code">
+        <p class="panel-label">Dart 実装</p>
+<pre><code>int applyLineDiscount(int lineExcl, Discount<span class="tk">?</span> d) {
+  <span class="tk">if (d == null) return lineExcl;</span><span class="rf">1</span>
+
+  final cut = <span class="tk">switch</span><span class="rf">2</span> (d.type) {
+    DiscountType.amount  =&gt; d.value,
+    DiscountType.percent =&gt; lineExcl * d.value <span class="tk">~/</span><span class="rf">3</span> 100,
+  };
+
+  final result = lineExcl - cut;
+  return <span class="tk">result &lt; 0 ? 0 : result</span><span class="rf">4</span>;
+}</code></pre>
+      </div>
+    </div>
+    <div class="feats">
+      <p class="panel-label">ここで分かる Dart の特徴</p>
+      <div class="fgrid">
+        <div class="f"><span class="rf">1</span><div><b>null ガード</b><p>引数 <code>Discount? d</code> は null かもしれない。先頭で <code>d == null</code> を弾くと、以降の <code>d.value</code> は安全に使える（コンパイラも「ここから先 d は非null」と理解する）。</p></div></div>
+        <div class="f"><span class="rf">2</span><div><b>switch 式<span class="t">=&gt;</span></b><p>分岐の結果を<b>そのまま値として</b>返す。<code>final cut = switch(...)</code> のように代入できる。enum を相手にすると「全パターン書いたか」もチェックされる。</p></div></div>
+        <div class="f"><span class="rf">3</span><div><b>整数除算<span class="t">~/</span></b><p><code>/</code> は小数を返すが <code>~/</code> は<b>商を整数で</b>返す（＝切り捨て）。お金の計算で誤差を出さない要。<code>1000 * 33 ~/ 100 = 330</code>。</p></div></div>
+        <div class="f"><span class="rf">4</span><div><b>三項演算子</b><p><code>条件 ? A : B</code> も式。「0未満なら0、でなければそのまま」を1行で。Dart は式で書ける場面が多く、短く読み下せる。</p></div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= 03 按分 ================= -->
+<section class="piece">
+  <div class="wrap reveal">
+    <div class="piece-head">
+      <span class="pno">03</span>
+      <div><h2>全体値引きの按分 — 端数をどう配るか</h2>
+      <p class="aim">「合計から○○円引き」を、8% と 10% のグループに<b>小計の比で割り振る</b>。整数で割ると1〜数円あまるので、合計が狂わないよう寄せる。</p></div>
+      <span class="file mono">register_calc.dart</span>
+    </div>
+    <div class="cols">
+      <div class="algo">
+        <p class="panel-label">自然言語のアルゴリズム</p>
+        <ol>
+          <li>全グループの小計を<b>合算</b>する。</li>
+          <li>値引きが0か小計が0なら、全グループ0で終わり。</li>
+          <li>各グループに「値引き × そのグループ小計 ÷ 合計」を配る（<b>切り捨て</b>）。</li>
+          <li>切り捨てた分、配った合計が値引き額に<b>少し届かない</b>。その<b>あまりを、小計が最大のグループに足す</b>。</li>
+        </ol>
+        <p class="note">「合計＝値引き額」を必ず守るための後始末がポイント。</p>
+      </div>
+      <div class="code">
+        <p class="panel-label">Dart 実装</p>
+<pre><code>Map<span class="tk">&lt;int, int&gt;</span><span class="rf">1</span> distributeOrderDiscount(
+    Map&lt;int, int&gt; subtotals, int amount) {
+
+  final total = subtotals.values.<span class="tk">fold</span><span class="rf">2</span>(0, (a, b) =&gt; a + b);
+  if (amount &lt;= 0 || total &lt;= 0) {
+    return <span class="tk">{ for (final r in subtotals.keys) r: 0 }</span><span class="rf">3</span>;
+  }
+
+  final alloc = &lt;int, int&gt;{};
+  var allocated = 0;
+  for (final e in subtotals.entries) {
+    final d = amount * e.value ~/ total;   <span class="cm">// 比例配分（切り捨て）</span>
+    alloc[e.key] = d;
+    allocated += d;
+  }
+
+  final remainder = amount - allocated;    <span class="cm">// あまり</span>
+  if (remainder != 0) {
+    final maxRate = subtotals.entries
+        .<span class="tk">reduce</span><span class="rf">4</span>((a, b) =&gt; a.value &gt;= b.value ? a : b).key;
+    alloc[maxRate] = alloc[maxRate]<span class="tk">!</span><span class="rf">5</span> + remainder;
+  }
+  return alloc;
+}</code></pre>
+      </div>
+    </div>
+    <div class="feats">
+      <p class="panel-label">ここで分かる Dart の特徴</p>
+      <div class="fgrid">
+        <div class="f"><span class="rf">1</span><div><b>ジェネリクス<span class="t">Map&lt;int,int&gt;</span></b><p>「税率→値引き額」のような<b>型のはっきりした連想配列</b>。<code>&lt;鍵の型, 値の型&gt;</code> を指定するので、取り違えをコンパイラが防ぐ。</p></div></div>
+        <div class="f"><span class="rf">2</span><div><b>畳み込み<span class="t">fold</span></b><p>コレクションを1つの値に「畳む」高階関数。<code>fold(0, (a,b)=&gt;a+b)</code> は合計。ループを書かず、意図（合計したい）を直接表す。</p></div></div>
+        <div class="f"><span class="rf">3</span><div><b>コレクション for</b><p>マップ/リストの<b>リテラルの中に for を書ける</b>。<code>{ for (r in keys) r: 0 }</code> で「全キーを0で初期化したマップ」を一息で作る。</p></div></div>
+        <div class="f"><span class="rf">4</span><div><b>reduce</b><p>要素同士を比べて1つに絞り込む。ここでは「小計が最大のエントリ」を選ぶ。<code>fold</code> と違い初期値なしで先頭から畳む。</p></div></div>
+        <div class="f"><span class="rf">5</span><div><b>非null表明<span class="t">!</span></b><p><code>alloc[maxRate]</code> はマップ参照なので <code>int?</code>（無いと null）。直前で必ず入れたと分かっているので <code>!</code> で「null じゃない」と断言する。乱用は禁物だが、根拠があるときの脱出弁。</p></div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= 04 会計計算 ================= -->
+<section class="piece">
+  <div class="wrap reveal">
+    <div class="piece-head">
+      <span class="pno">04</span>
+      <div><h2>会計の組み立て — computeReceipt</h2>
+      <p class="aim">明細・全体値引き・預かり金を受け取り、税率別の集計とお釣りまで揃った<b>レシート（結果のかたまり）</b>を返す。状態を持たない純粋関数。</p></div>
+      <span class="file mono">register_calc.dart</span>
+    </div>
+    <div class="cols">
+      <div class="algo">
+        <p class="panel-label">自然言語のアルゴリズム</p>
+        <ol>
+          <li>各明細に単品値引きを適用し、<b>税率ごとに小計</b>を足し込む。</li>
+          <li>全体値引きを計算し、税率グループへ<b>按分</b>（03の関数を呼ぶ）。</li>
+          <li>税率の小さい順に並べ、各グループの<b>税額を切り捨て</b>で出す。</li>
+          <li>課税ベースと税額を積んで合計、預かりからお釣りを出し、<b>まとめて返す</b>。</li>
+        </ol>
+        <p class="note">入力から出力を組み立てるだけで、外を書き換えない＝何度呼んでも同じ。</p>
+      </div>
+      <div class="code">
+        <p class="panel-label">Dart 実装（要点を抜粋）</p>
+<pre><code>Receipt computeReceipt(<span class="tk">{</span><span class="rf">1</span>
+  required List&lt;CartLine&gt; lines,
+  required Discount? orderDiscount,
+  required int tendered,
+<span class="tk">}</span>) {
+  final subtotals = &lt;int, int&gt;{};
+  for (final line in lines) {
+    final after = applyLineDiscount(
+        line.product.unitPriceExclTax * line.quantity, line.lineDiscount);
+    subtotals.<span class="tk">update</span><span class="rf">2</span>(line.product.taxRate,
+        (v) =&gt; v + after, <span class="tk">ifAbsent: () =&gt; after</span><span class="rf">2</span>);
+  }
+
+  final rates = subtotals.keys.toList()<span class="tk">..sort()</span><span class="rf">3</span>;  <span class="cm">// 8 → 10</span>
+  <span class="cm">// …各 rate で税額 = base * rate ~/ 100 を積む…</span>
+
+  return <span class="tk">Receipt(</span><span class="rf">4</span> /* 集計結果をまとめて */ );  <span class="cm">// 新しい不変オブジェクト</span>
+}</code></pre>
+      </div>
+    </div>
+    <div class="feats">
+      <p class="panel-label">ここで分かる Dart の特徴</p>
+      <div class="fgrid">
+        <div class="f"><span class="rf">1</span><div><b>名前付き引数の関数</b><p>引数が増えても呼び出しが <code>computeReceipt(lines: …, tendered: …)</code> と読める。順番を覚えなくてよく、取り違えが起きにくい。</p></div></div>
+        <div class="f"><span class="rf">2</span><div><b>Map.update<span class="t">ifAbsent</span></b><p>「キーがあれば更新、無ければ初期化」を1つで。<code>ifAbsent</code> に初回の値を渡す。税率ごとの小計を、存在チェックを書かずに足し込める。</p></div></div>
+        <div class="f"><span class="rf">3</span><div><b>カスケード<span class="t">..</span></b><p><code>list..sort()</code> は「その list に対して sort して、<b>list 自身を返す</b>」。一時変数を作らず、生成→設定を流れるように繋げられる。</p></div></div>
+        <div class="f"><span class="rf">4</span><div><b>純粋関数＝結果を返す設計</b><p>グローバルや画面を書き換えず、<b>入力→新しい Receipt</b> を返すだけ。だから単体テストが容易で、同じ入力なら必ず同じ結果（02〜04はテストで固めてある）。</p></div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= 05 状態 ================= -->
+<section class="piece">
+  <div class="wrap reveal">
+    <div class="piece-head">
+      <span class="pno">05</span>
+      <div><h2>司令塔 — RegisterModel（状態）</h2>
+      <p class="aim">カートを覚え、操作のたびに「再計算 → 保存 → 画面へ通知」をまとめて行う。計算は04、保存はDB層に委ね、自分は<b>つなぎ役</b>に徹する。</p></div>
+      <span class="file mono">lib/state/register_model.dart</span>
+    </div>
+    <div class="cols">
+      <div class="algo">
+        <p class="panel-label">自然言語のアルゴリズム</p>
+        <ol>
+          <li>現在のカート明細を<b>内部に持つ</b>（外から直接いじらせない）。</li>
+          <li>「商品を足す」とき、<b>同じ商品が既にあれば数量+1</b>、無ければ新しい行を追加。</li>
+          <li>変更したら<b>保存</b>し（待つ）、画面に<b>「変わったよ」と知らせる</b>。</li>
+        </ol>
+        <p class="note">外部は read 専用ビューしか見られない。変更は必ずメソッド経由＝保存と通知が必ずセットで走る。</p>
+      </div>
+      <div class="code">
+        <p class="panel-label">Dart 実装</p>
+<pre><code>class RegisterModel <span class="tk">extends ChangeNotifier</span><span class="rf">1</span> {
+  final CartRepository cartRepo;
+  <span class="tk">List&lt;CartLine&gt; _lines</span><span class="rf">2</span> = [];   <span class="cm">// _ で始まる＝非公開</span>
+
+  List&lt;CartLine&gt; <span class="tk">get</span><span class="rf">2</span> lines =&gt; <span class="tk">List.unmodifiable</span><span class="rf">3</span>(_lines);
+
+  <span class="tk">Future&lt;void&gt;</span><span class="rf">4</span> addProduct(Product p) <span class="tk">async</span><span class="rf">4</span> {
+    final idx = _lines.indexWhere((l) =&gt; l.product.id == p.id);
+    if (idx &gt;= 0) {
+      _lines[idx] = _lines[idx].copyWith(quantity: _lines[idx].quantity + 1);
+    } else {
+      _lines.add(CartLine(product: p, quantity: 1));
+    }
+    <span class="tk">await</span><span class="rf">4</span> cartRepo.replaceLines(_lines);  <span class="cm">// 保存（完了を待つ）</span>
+    <span class="tk">notifyListeners()</span><span class="rf">1</span>;                 <span class="cm">// 画面へ通知</span>
+  }
+}</code></pre>
+      </div>
+    </div>
+    <div class="feats">
+      <p class="panel-label">ここで分かる Dart の特徴</p>
+      <div class="fgrid">
+        <div class="f"><span class="rf">1</span><div><b>継承と通知<span class="t">ChangeNotifier</span></b><p><code>extends</code> で既存のクラスを土台にする。<code>ChangeNotifier</code> は「変わったら購読者に知らせる」機能を提供し、<code>notifyListeners()</code> で画面の再描画を促す。</p></div></div>
+        <div class="f"><span class="rf">2</span><div><b>非公開<span class="t">_</span>＋getter<span class="t">get</span></b><p>名前が <code>_</code> で始まると<b>そのファイル外から見えない</b>。中身 <code>_lines</code> は隠し、<code>get lines</code> で読み取りだけ公開する。</p></div></div>
+        <div class="f"><span class="rf">3</span><div><b>不変ビュー<span class="t">List.unmodifiable</span></b><p>外へ渡すのは「書き換え不可のリスト」。受け取った側が勝手に <code>add</code> できないので、変更は必ずモデルのメソッド経由になる。</p></div></div>
+        <div class="f"><span class="rf">4</span><div><b>非同期<span class="t">Future / async / await</span></b><p>保存はあとで終わる処理＝<code>Future</code>。<code>async</code> 関数の中で <code>await</code> すると、完了を待ってから次行へ。コールバックの入れ子にならず上から下に読める。</p></div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= 06 レコード ================= -->
+<section class="piece">
+  <div class="wrap reveal">
+    <div class="piece-head">
+      <span class="pno">06</span>
+      <div><h2>カート復元 — 2つの値を返す</h2>
+      <p class="aim">起動時、保存された「途中のカート」を読み戻す。明細リストと全体値引きの<b>2つ</b>を一度に返したい。消えた商品の行はスキップ。</p></div>
+      <span class="file mono">lib/data/cart_repository.dart</span>
+    </div>
+    <div class="cols">
+      <div class="algo">
+        <p class="panel-label">自然言語のアルゴリズム</p>
+        <ol>
+          <li>保存済みの明細行を順に読む。</li>
+          <li>その行の商品が<b>もう存在しなければ飛ばす</b>。</li>
+          <li>残った行から明細を組み立てる。</li>
+          <li>全体値引きも読み戻し、<b>「明細リスト」と「値引き」をまとめて返す</b>。</li>
+        </ol>
+        <p class="note">呼び出し側は2つを別々に受け取りたい → レコードと分割代入が活きる。</p>
+      </div>
+      <div class="code">
+        <p class="panel-label">Dart 実装</p>
+<pre><code>Future<span class="tk">&lt;(List&lt;CartLine&gt;, Discount?)&gt;</span><span class="rf">1</span> loadDraft() async {
+  final rows = await (db.select(db.draftCartLines)
+        ..orderBy([(t) =&gt; OrderingTerm(expression: t.sortOrder)])).get();
+
+  final lines = &lt;CartLine&gt;[];
+  for (final row in rows) {
+    final p = await (db.select(db.products)
+        ..where((t) =&gt; t.id.equals(row.productId))).getSingleOrNull();
+    <span class="tk">if (p == null) continue;</span><span class="rf">2</span>          <span class="cm">// 消えた商品は捨てる</span>
+    lines.add(CartLine(product: toProduct(p), quantity: row.quantity,
+        lineDiscount: discountFrom(row.lineDiscountType, row.lineDiscountValue)));
+  }
+  <span class="cm">// …全体値引き orderDiscount も読み戻す…</span>
+  return <span class="tk">(lines, orderDiscount)</span><span class="rf">3</span>;       <span class="cm">// 2つまとめて</span>
+}
+
+<span class="cm">// 呼び出し側（RegisterModel.init）</span>
+final <span class="tk">(lines, discount)</span><span class="rf">4</span> = await cartRepo.loadDraft();</code></pre>
+      </div>
+    </div>
+    <div class="feats">
+      <p class="panel-label">ここで分かる Dart の特徴</p>
+      <div class="fgrid">
+        <div class="f"><span class="rf">1</span><div><b>レコード型<span class="t">(A, B)</span></b><p>複数の値の<b>軽量な組</b>。<code>(List&lt;CartLine&gt;, Discount?)</code> で「明細と値引きの2つ組」を返り値型にできる。2つのためだけにクラスを作らなくてよい。</p></div></div>
+        <div class="f"><span class="rf">2</span><div><b>早期スキップ<span class="t">continue</span></b><p>条件に合わない行は <code>continue</code> でその回を飛ばす。<code>p == null</code>（=削除済み）なら何もしない、を素直に書ける。</p></div></div>
+        <div class="f"><span class="rf">3</span><div><b>レコードを返す</b><p><code>return (lines, orderDiscount);</code> と書くだけ。括弧で包めばその場で2つ組になる。</p></div></div>
+        <div class="f"><span class="rf">4</span><div><b>分割代入</b><p><code>final (lines, discount) = …</code> で返ってきた組を<b>その場で2変数に展開</b>。受け取りが一行で、名前も自分で付けられる。</p></div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= 07 Stream ================= -->
+<section class="piece">
+  <div class="wrap reveal">
+    <div class="piece-head">
+      <span class="pno">07</span>
+      <div><h2>売上一覧 — 流れ続ける値（Stream）</h2>
+      <p class="aim">売上テーブルが変わるたびに、最新の一覧を<b>自動で流す</b>。UI はそれを受けて勝手に描き直す。「取りに行く」のでなく「流れてくる」。</p></div>
+      <span class="file mono">lib/data/sales_repository.dart</span>
+    </div>
+    <div class="cols">
+      <div class="algo">
+        <p class="panel-label">自然言語のアルゴリズム</p>
+        <ol>
+          <li>売上を<b>新しい順</b>に、件数を絞って問い合わせる。</li>
+          <li>その問い合わせ結果を<b>購読</b>する（変化があるたび届く）。</li>
+          <li>届いた行を、画面表示用の軽い形に<b>変換して流す</b>。</li>
+        </ol>
+        <p class="note">1回きりの値なら Future。何度も届くなら Stream。会計が増えるたび一覧を更新したいので Stream。</p>
+      </div>
+      <div class="code">
+        <p class="panel-label">Dart 実装</p>
+<pre><code><span class="tk">Stream&lt;List&lt;SaleListItem&gt;&gt;</span><span class="rf">1</span> watchRecent({int limit = 50}) {
+  final query = db.select(db.sales)
+    ..orderBy([(t) =&gt; OrderingTerm(
+        expression: t.createdAt, mode: OrderingMode.desc)])
+    ..limit(limit);
+
+  return query.<span class="tk">watch()</span><span class="rf">2</span>            <span class="cm">// DBの変化を Stream に</span>
+      .<span class="tk">map</span><span class="rf">3</span>((rows) =&gt; rows
+          .map((r) =&gt; SaleListItem(/* … */))
+          .toList());
+}
+
+<span class="cm">// 画面側は StreamBuilder で受けて自動再描画</span>
+StreamBuilder&lt;List&lt;SaleListItem&gt;&gt;(stream: repo.watchRecent(), …)</code></pre>
+      </div>
+    </div>
+    <div class="feats">
+      <p class="panel-label">ここで分かる Dart の特徴</p>
+      <div class="fgrid">
+        <div class="f"><span class="rf">1</span><div><b>Stream<span class="t">Stream&lt;T&gt;</span></b><p>時間とともに<b>何度も値が流れる</b>通り道。<code>Future</code>（1回）と対になる概念。「最新の一覧」のように更新され続けるものに向く。</p></div></div>
+        <div class="f"><span class="rf">2</span><div><b>リアクティブな購読<span class="t">.watch()</span></b><p>drift は <code>.get()</code>（1回取得）に対し <code>.watch()</code> で<b>変化を監視する Stream</b> を返す。売上が増えれば自動で次の値が流れる。</p></div></div>
+        <div class="f"><span class="rf">3</span><div><b>宣言的変換<span class="t">.map</span></b><p>流れてくる行を、その都度 <code>map</code> で表示用の形へ変換。「どう変えるか」を書くだけで、いつ・何回かは Stream に任せる。UI 側は <code>StreamBuilder</code> が再描画してくれる。</p></div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= 08 main ================= -->
+<section class="piece">
+  <div class="wrap reveal">
+    <div class="piece-head">
+      <span class="pno">08</span>
+      <div><h2>起動 — main で土台を組む</h2>
+      <p class="aim">アプリの入口。DBを開き、初回ならサンプル投入、カートを復元してから画面を立ち上げる。<b>準備が終わるまで待ってから</b> runApp。</p></div>
+      <span class="file mono">lib/main.dart</span>
+    </div>
+    <div class="cols">
+      <div class="algo">
+        <p class="panel-label">自然言語のアルゴリズム</p>
+        <ol>
+          <li>下準備の合図を出す（Flutter の初期化）。</li>
+          <li>データベースを<b>開く</b>（完了を待つ）。</li>
+          <li>商品が空なら<b>サンプルを入れる</b>。</li>
+          <li>退避カートを<b>復元</b>する。</li>
+          <li>準備が全部終わってから<b>アプリを起動</b>。</li>
+        </ol>
+        <p class="note">「待つ」べき処理が並ぶので、入口の main 自体を非同期にする。</p>
+      </div>
+      <div class="code">
+        <p class="panel-label">Dart 実装</p>
+<pre><code><span class="tk">Future&lt;void&gt; main() async</span><span class="rf">1</span> {
+  <span class="tk">WidgetsFlutterBinding.ensureInitialized();</span><span class="rf">2</span>
+
+  final db = AppDatabase(<span class="tk">await</span><span class="rf">3</span> openWebExecutor());  <span class="cm">// 開くのを待つ</span>
+  final productRepo = ProductRepository(db);
+  await <span class="tk">seedIfEmpty</span><span class="rf">4</span>(productRepo);          <span class="cm">// 空なら投入</span>
+
+  final register = RegisterModel(cartRepo, salesRepo);
+  await register.init();                       <span class="cm">// カート復元</span>
+
+  <span class="tk">runApp(</span><span class="rf">5</span>PosApp(/* … */));            <span class="cm">// 準備完了 → UI起動</span>
+}</code></pre>
+      </div>
+    </div>
+    <div class="feats">
+      <p class="panel-label">ここで分かる Dart の特徴</p>
+      <div class="fgrid">
+        <div class="f"><span class="rf">1</span><div><b>非同期な入口<span class="t">main() async</span></b><p>プログラムの開始点 <code>main</code> も <code>async</code> にできる。だから起動処理の中で堂々と <code>await</code> できる。</p></div></div>
+        <div class="f"><span class="rf">2</span><div><b>トップレベル関数</b><p>Dart はクラスに属さない<b>関数を直接置ける</b>。<code>main</code> もそう。Java のように全部をクラスで包む必要がない。</p></div></div>
+        <div class="f"><span class="rf">3</span><div><b>await で順序保証</b><p><code>await openWebExecutor()</code> はDBが開くまで待つ。次の行は「開いた後」に必ず実行される＝初期化の順番が崩れない。</p></div></div>
+        <div class="f"><span class="rf">4</span><div><b>冪等な初期化<span class="t">seedIfEmpty</span></b><p>「空のときだけ入れる」。2回起動しても二重投入されない。名前が意図（空なら）を語る — このノートが推す書き方。</p></div></div>
+        <div class="f"><span class="rf">5</span><div><b>runApp で起動</b><p>Flutter は <code>runApp(ルートのウィジェット)</code> で描画が始まる。<b>すべての準備が済んでから</b>呼ぶのがコツ（途中の空状態を見せない）。</p></div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= 4層リキャップ ================= -->
+<section>
+  <div class="wrap reveal">
+    <p class="kicker">つなげて見る</p>
+    <h2 class="h-sec">8つの部位は、4つの層に収まる</h2>
+    <p class="sub">01〜08 で見た部品は、下から「計算 → 保存 → 司令塔 → 画面」の4層に整理される。下の層ほど純粋で、テストしやすく、最初に作る。</p>
+    <div class="recap">
+      <div class="rc"><div class="n">1</div><h4>ドメイン</h4><p>01 02 03 04<br>純粋な計算と型</p><span class="mono">lib/domain</span></div>
+      <div class="rc"><div class="n">2</div><h4>データ</h4><p>06 07<br>保存と取り出し</p><span class="mono">lib/data</span></div>
+      <div class="rc"><div class="n">3</div><h4>状態</h4><p>05<br>つなぐ司令塔</p><span class="mono">lib/state</span></div>
+      <div class="rc"><div class="n">4</div><h4>UI</h4><p>08 が起動<br>触れる画面</p><span class="mono">lib/ui</span></div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    POS レジ — 設計を Dart で読み解く対訳ノート ／ Dart 3 · Flutter (Web) · drift(SQLite)<br>
+    左の日本語が「考え方」、右のコードが「Dart の言い回し」。両方を行き来できれば、もう読める。
+  </div>
+</footer>
+
+<script>
+  const bar = document.getElementById('progress');
+  const onScroll = () => {
+    const h = document.documentElement;
+    const max = h.scrollHeight - h.clientHeight;
+    bar.style.width = (max > 0 ? (h.scrollTop / max) * 100 : 0) + '%';
+  };
+  document.addEventListener('scroll', onScroll, {passive:true});
+  onScroll();
+
+  const items = document.querySelectorAll('.reveal');
+  if (!('IntersectionObserver' in window) ||
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    items.forEach(el => el.classList.add('in'));
+  } else {
+    const io = new IntersectionObserver((entries) => {
+      entries.forEach(e => { if (e.isIntersecting){ e.target.classList.add('in'); io.unobserve(e.target); }});
+    }, {threshold:0.08, rootMargin:'0px 0px -6% 0px'});
+    items.forEach(el => io.observe(el));
+  }
+</script>
+</body>
+</html>
