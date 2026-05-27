@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>ゼロから作る POS レジ — Flutter 道案内</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@500;700;900&family=Zen+Kaku+Gothic+New:wght@400;500;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+<style>
+  :root{
+    --paper:#f6f1e7;
+    --paper-2:#fffdf8;
+    --ink:#2b2722;
+    --ink-soft:#5b5347;
+    --muted:#8a8175;
+    --line:#e3d9c6;
+    --teal:#1b7f79;
+    --teal-deep:#13534f;
+    --teal-soft:#d9ece9;
+    --amber:#e08a2b;
+    --amber-soft:#f7e6cc;
+    --rose:#c75c4b;
+    --radius:18px;
+    --shadow:0 10px 30px -12px rgba(43,39,34,.28);
+    --shadow-sm:0 4px 14px -8px rgba(43,39,34,.4);
+  }
+  *{box-sizing:border-box;}
+  html{scroll-behavior:smooth;}
+  body{
+    margin:0;
+    font-family:"Zen Kaku Gothic New",sans-serif;
+    color:var(--ink);
+    background-color:var(--paper);
+    /* 紙の質感: ごく薄いドットと斜めの光ムラを重ねて、ベタ塗りの平坦さを避ける */
+    background-image:
+      radial-gradient(circle at 1px 1px, rgba(43,39,34,.05) 1px, transparent 0),
+      linear-gradient(135deg, rgba(255,253,248,.6), rgba(246,241,231,0) 60%);
+    background-size:22px 22px, 100% 100%;
+    line-height:1.85;
+    -webkit-font-smoothing:antialiased;
+    overflow-x:hidden;
+  }
+  h1,h2,h3,.display{font-family:"Zen Maru Gothic",sans-serif;font-weight:700;line-height:1.4;letter-spacing:.01em;}
+  code,.mono{font-family:"JetBrains Mono",monospace;}
+  a{color:var(--teal-deep);}
+
+  /* スクロール進捗バー: 学習という"旅"の進み具合を視覚化する */
+  #progress{position:fixed;top:0;left:0;height:4px;width:0;z-index:50;
+    background:linear-gradient(90deg,var(--teal),var(--amber));transition:width .1s linear;}
+
+  .wrap{max-width:1080px;margin:0 auto;padding:0 24px;}
+  section{padding:72px 0;}
+
+  /* ===== Hero ===== */
+  .hero{position:relative;padding:96px 0 64px;overflow:hidden;}
+  .hero-grid{display:grid;grid-template-columns:1.25fr .75fr;gap:48px;align-items:center;}
+  .eyebrow{display:inline-flex;align-items:center;gap:8px;font-weight:700;font-size:.82rem;
+    letter-spacing:.16em;text-transform:uppercase;color:var(--teal-deep);
+    background:var(--teal-soft);padding:6px 14px;border-radius:999px;}
+  .hero h1{font-size:clamp(2.3rem,5.2vw,4rem);font-weight:900;margin:22px 0 18px;}
+  .hero h1 .hl{position:relative;white-space:nowrap;}
+  .hero h1 .hl::after{content:"";position:absolute;left:-2%;right:-2%;bottom:.08em;height:.38em;
+    background:var(--amber-soft);z-index:-1;border-radius:4px;transform:rotate(-1deg);}
+  .lead{font-size:1.18rem;color:var(--ink-soft);max-width:34ch;}
+  .reassure{margin-top:26px;display:flex;flex-wrap:wrap;gap:10px;}
+  .chip{display:inline-flex;align-items:center;gap:7px;background:var(--paper-2);
+    border:1.5px solid var(--line);border-radius:999px;padding:8px 14px;font-size:.9rem;font-weight:500;box-shadow:var(--shadow-sm);}
+  .chip svg{flex:none;}
+
+  /* レジ端末のラフなイラスト（インラインSVG・意味を持つので絵文字は使わない方針） */
+  .hero-art{position:relative;}
+  .hero-art .badge{position:absolute;top:-18px;right:6px;background:var(--rose);color:#fff;
+    font-family:"Zen Maru Gothic";font-weight:700;font-size:.8rem;padding:8px 14px;border-radius:12px;
+    transform:rotate(6deg);box-shadow:var(--shadow);}
+
+  /* ===== セクション見出し ===== */
+  .kicker{font-weight:700;color:var(--amber);letter-spacing:.14em;text-transform:uppercase;font-size:.8rem;}
+  .h-sec{font-size:clamp(1.7rem,3.6vw,2.5rem);margin:8px 0 8px;}
+  .sub{color:var(--ink-soft);max-width:60ch;margin-bottom:8px;}
+
+  /* ===== カード共通 ===== */
+  .card{background:var(--paper-2);border:1.5px solid var(--line);border-radius:var(--radius);
+    box-shadow:var(--shadow);}
+
+  /* ===== 4層 = レストランの喩え ===== */
+  .stack{display:flex;flex-direction:column;gap:14px;margin-top:34px;}
+  .layer{display:grid;grid-template-columns:64px 1fr auto;gap:20px;align-items:center;
+    padding:20px 24px;border-radius:var(--radius);border:1.5px solid var(--line);position:relative;overflow:hidden;}
+  .layer .num{font-family:"Zen Maru Gothic";font-weight:900;font-size:1.6rem;width:64px;height:64px;
+    display:grid;place-items:center;border-radius:16px;color:#fff;}
+  .layer h3{margin:0 0 2px;font-size:1.15rem;}
+  .layer p{margin:0;color:var(--ink-soft);font-size:.96rem;}
+  .layer .tag{font-family:"JetBrains Mono";font-size:.78rem;color:var(--muted);white-space:nowrap;}
+  .layer.ui{background:linear-gradient(120deg,#fff,#fdf3e6);}
+  .layer.state{background:linear-gradient(120deg,#fff,#f0f6f5);}
+  .layer.data{background:linear-gradient(120deg,#fff,#f4f0e6);}
+  .layer.domain{background:linear-gradient(120deg,#fff,#eaf3f1);}
+  .layer.ui .num{background:var(--amber);}
+  .layer.state .num{background:#5aa7a0;}
+  .layer.data .num{background:#b08544;}
+  .layer.domain .num{background:var(--teal-deep);}
+  .arrow-note{text-align:center;color:var(--muted);font-size:.86rem;margin:18px 0 0;}
+
+  /* ===== 用語ミニ辞典 ===== */
+  .terms{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:16px;margin-top:30px;}
+  .term{padding:20px 22px;border-radius:var(--radius);background:var(--paper-2);border:1.5px solid var(--line);
+    transition:transform .25s ease, box-shadow .25s ease;}
+  .term:hover{transform:translateY(-4px);box-shadow:var(--shadow);}
+  .term .jp{font-family:"Zen Maru Gothic";font-weight:700;font-size:1.1rem;display:flex;align-items:center;gap:10px;}
+  .term .en{font-family:"JetBrains Mono";font-size:.76rem;color:var(--teal);text-transform:uppercase;letter-spacing:.06em;}
+  .term p{margin:8px 0 0;font-size:.93rem;color:var(--ink-soft);}
+  .term .ic{width:34px;height:34px;flex:none;display:grid;place-items:center;border-radius:10px;background:var(--teal-soft);color:var(--teal-deep);}
+
+  /* ===== ロードマップ（旅の地図） ===== */
+  .road{position:relative;margin-top:46px;padding-left:8px;}
+  /* 縦に走る点線の道 */
+  .road::before{content:"";position:absolute;left:35px;top:10px;bottom:10px;width:0;
+    border-left:3px dashed var(--line);}
+  .station{position:relative;display:grid;grid-template-columns:72px 1fr;gap:24px;margin-bottom:30px;}
+  .station .dot{position:relative;z-index:2;width:72px;height:72px;border-radius:20px;display:grid;place-items:center;
+    color:#fff;box-shadow:var(--shadow);font-family:"Zen Maru Gothic";}
+  .station .dot .ph{position:absolute;top:-10px;left:-10px;background:var(--paper-2);color:var(--ink);
+    border:1.5px solid var(--line);border-radius:999px;font-size:.72rem;font-weight:700;padding:2px 9px;font-family:"Zen Kaku Gothic New";}
+  .station .body{padding:22px 26px;}
+  .station h3{margin:0 0 4px;font-size:1.25rem;}
+  .station .goal{color:var(--ink-soft);margin:0 0 16px;}
+  .meta{display:grid;grid-template-columns:1fr 1fr;gap:14px 28px;}
+  @media(max-width:620px){.meta{grid-template-columns:1fr;}}
+  .meta .lbl{font-size:.74rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--teal);display:flex;align-items:center;gap:6px;margin-bottom:2px;}
+  .meta .why .lbl{color:var(--amber);}
+  .meta .new .lbl{color:#5aa7a0;}
+  .meta .trip .lbl{color:var(--rose);}
+  .meta p{margin:0;font-size:.92rem;color:var(--ink-soft);}
+  .codeline{margin-top:14px;background:#1f2b29;color:#dCEcE8;border-radius:12px;padding:12px 16px;
+    font-family:"JetBrains Mono";font-size:.82rem;overflow-x:auto;display:flex;align-items:center;gap:10px;}
+  .codeline::before{content:"›";color:var(--amber);font-weight:600;}
+
+  /* 各駅の色 */
+  .s0 .dot{background:#9a8f7d;} .s1 .dot{background:var(--teal-deep);}
+  .s2 .dot{background:#b08544;} .s3 .dot{background:#5aa7a0;}
+  .s4 .dot{background:var(--amber);} .s5 .dot{background:var(--rose);}
+
+  /* ===== コールアウト ===== */
+  .callout{display:grid;grid-template-columns:auto 1fr;gap:16px;padding:18px 22px;border-radius:14px;margin-top:14px;
+    background:var(--amber-soft);border:1.5px solid #ecd3a8;}
+  .callout.tip{background:var(--teal-soft);border-color:#bfe0db;}
+  .callout .ic{width:30px;height:30px;flex:none;}
+  .callout b{font-family:"Zen Maru Gothic";}
+  .callout p{margin:4px 0 0;font-size:.92rem;color:var(--ink-soft);}
+
+  /* ===== なぜこの順番 ===== */
+  .why-grid{display:grid;grid-template-columns:1fr 1fr;gap:22px;margin-top:30px;}
+  @media(max-width:760px){.why-grid{grid-template-columns:1fr;}}
+  .why-card{padding:26px;border-radius:var(--radius);border:1.5px solid var(--line);background:var(--paper-2);}
+  .why-card h3{margin:0 0 8px;display:flex;align-items:center;gap:10px;}
+  .why-card p{margin:0;color:var(--ink-soft);}
+
+  /* ===== つまずき集 ===== */
+  .traps{margin-top:28px;display:flex;flex-direction:column;gap:12px;}
+  .trap{display:grid;grid-template-columns:auto 1fr;gap:16px;padding:18px 22px;border-radius:14px;
+    background:var(--paper-2);border:1.5px solid var(--line);border-left:5px solid var(--rose);}
+  .trap b{font-family:"Zen Maru Gothic";}
+  .trap p{margin:5px 0 0;font-size:.92rem;color:var(--ink-soft);}
+  .trap .ic{width:26px;height:26px;flex:none;color:var(--rose);margin-top:3px;}
+
+  /* ===== 次の一歩 ===== */
+  .next{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;margin-top:28px;}
+  .next .n{padding:20px;border-radius:14px;background:var(--paper-2);border:1.5px dashed var(--teal);}
+  .next .n h4{margin:0 0 6px;font-family:"Zen Maru Gothic";color:var(--teal-deep);}
+  .next .n p{margin:0;font-size:.9rem;color:var(--ink-soft);}
+
+  footer{padding:50px 0 70px;text-align:center;color:var(--muted);font-size:.86rem;border-top:1.5px solid var(--line);margin-top:30px;}
+
+  /* ===== スクロール演出 ===== */
+  .reveal{opacity:0;transform:translateY(24px);transition:opacity .7s cubic-bezier(.2,.7,.2,1),transform .7s cubic-bezier(.2,.7,.2,1);}
+  .reveal.in{opacity:1;transform:none;}
+  .reveal[data-d="1"]{transition-delay:.08s;}
+  .reveal[data-d="2"]{transition-delay:.16s;}
+  .reveal[data-d="3"]{transition-delay:.24s;}
+
+  @media(max-width:860px){
+    .hero-grid{grid-template-columns:1fr;}
+    .hero-art{order:-1;max-width:320px;}
+  }
+  @media(prefers-reduced-motion:reduce){
+    html{scroll-behavior:auto;}
+    .reveal{opacity:1;transform:none;transition:none;}
+    .term{transition:none;}
+    #progress{transition:none;}
+  }
+</style>
+<!-- JS が無効でも内容が消えないよう、出現演出の初期状態を打ち消す -->
+<noscript><style>.reveal{opacity:1;transform:none;}</style></noscript>
+</head>
+<body>
+<div id="progress" aria-hidden="true"></div>
+
+<!-- ========================= HERO ========================= -->
+<header class="hero">
+  <div class="wrap hero-grid">
+    <div>
+      <span class="eyebrow">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l19-9-9 19-2-8-8-2z"/></svg>
+        はじめての人のための道案内
+      </span>
+      <h1>ゼロから作る<br><span class="hl">POS レジアプリ</span></h1>
+      <p class="lead">プログラミング未経験から、Flutter で「動くレジ」を作りきるまでの地図。むずかしい言葉は、出てくるたびにかみ砕きます。</p>
+      <div class="reassure">
+        <span class="chip"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#1b7f79" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>予備知識ゼロ前提</span>
+        <span class="chip"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#1b7f79" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>1段ずつ・小さく</span>
+        <span class="chip"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#1b7f79" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>つまずき先回り</span>
+      </div>
+    </div>
+    <div class="hero-art reveal" data-d="1">
+      <div class="badge">¥ 会計できた！</div>
+      <!-- レジ端末のラフ画 -->
+      <svg viewBox="0 0 320 300" width="100%" role="img" aria-label="POSレジ端末のイラスト">
+        <defs>
+          <linearGradient id="scr" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0" stop-color="#1b7f79"/><stop offset="1" stop-color="#13534f"/>
+          </linearGradient>
+        </defs>
+        <rect x="34" y="36" width="252" height="180" rx="16" fill="#fffdf8" stroke="#2b2722" stroke-width="3"/>
+        <rect x="50" y="52" width="120" height="148" rx="10" fill="url(#scr)"/>
+        <rect x="62" y="66" width="96" height="14" rx="4" fill="#ffffff" opacity=".85"/>
+        <rect x="62" y="90" width="70" height="10" rx="3" fill="#ffffff" opacity=".55"/>
+        <rect x="62" y="108" width="84" height="10" rx="3" fill="#ffffff" opacity=".55"/>
+        <rect x="62" y="170" width="96" height="18" rx="5" fill="#e08a2b"/>
+        <g>
+          <rect x="186" y="62" width="84" height="26" rx="6" fill="#f6f1e7" stroke="#2b2722" stroke-width="2.5"/>
+          <rect x="186" y="98" width="84" height="26" rx="6" fill="#f6f1e7" stroke="#2b2722" stroke-width="2.5"/>
+          <rect x="186" y="134" width="84" height="26" rx="6" fill="#f7e6cc" stroke="#2b2722" stroke-width="2.5"/>
+          <rect x="186" y="170" width="84" height="26" rx="6" fill="#d9ece9" stroke="#2b2722" stroke-width="2.5"/>
+        </g>
+        <rect x="96" y="216" width="128" height="14" rx="4" fill="#2b2722"/>
+        <rect x="120" y="230" width="80" height="40" rx="8" fill="#cabfa9" stroke="#2b2722" stroke-width="3"/>
+        <!-- レシート -->
+        <g transform="rotate(-7 70 250)">
+          <rect x="22" y="208" width="74" height="86" rx="6" fill="#fffdf8" stroke="#2b2722" stroke-width="2.5"/>
+          <rect x="32" y="220" width="54" height="7" rx="2" fill="#cabfa9"/>
+          <rect x="32" y="234" width="40" height="6" rx="2" fill="#e3d9c6"/>
+          <rect x="32" y="246" width="48" height="6" rx="2" fill="#e3d9c6"/>
+          <rect x="32" y="268" width="54" height="9" rx="2" fill="#1b7f79"/>
+        </g>
+      </svg>
+    </div>
+  </div>
+</header>
+
+<!-- ========================= 完成イメージ ========================= -->
+<section>
+  <div class="wrap">
+    <p class="kicker reveal">ゴール</p>
+    <h2 class="h-sec reveal">何が「できあがる」の？</h2>
+    <p class="sub reveal">ブラウザで動く、お店のレジです。最後にはこれが全部あなたの手で動きます。</p>
+    <div class="terms">
+      <div class="term reveal" data-d="0">
+        <div class="jp"><span class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg></span>商品をタップ</div>
+        <p>並んだ商品を押すとカートに入る。数量を増減できる。</p>
+      </div>
+      <div class="term reveal" data-d="1">
+        <div class="jp"><span class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M2 7l10-5 10 5"/><path d="M2 7v10l10 5 10-5V7"/></svg></span>税と値引き</div>
+        <p>軽減税率 8% / 10% を分けて計算。単品にも全体にも値引き。</p>
+      </div>
+      <div class="term reveal" data-d="2">
+        <div class="jp"><span class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M2 10h20"/></svg></span>現金会計</div>
+        <p>預かり金を打つとお釣りを計算。レシートも出る。</p>
+      </div>
+      <div class="term reveal" data-d="3">
+        <div class="jp"><span class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 14l4-4 3 3 5-6"/></svg></span>記録が残る</div>
+        <p>売上も商品も、ブラウザを閉じても消えない（保存される）。</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ========================= 頭の中の地図（4層） ========================= -->
+<section>
+  <div class="wrap">
+    <p class="kicker reveal">大きな地図</p>
+    <h2 class="h-sec reveal">アプリは「お店」だと思うと分かる</h2>
+    <p class="sub reveal">プログラムは4つの役割に分けて作ります。レストランに例えると、それぞれの担当がはっきりします。下から上へ、内側から外側へ。</p>
+    <div class="stack">
+      <div class="layer ui reveal" data-d="0">
+        <div class="num">4</div>
+        <div><h3>UI ＝ 客席とメニュー表</h3><p>お客さんが見て触る画面。ボタンや一覧。<b>見た目だけ</b>を受け持ち、計算はしない。</p></div>
+        <div class="tag">lib/ui/</div>
+      </div>
+      <div class="layer state reveal" data-d="1">
+        <div class="num">3</div>
+        <div><h3>状態 ＝ ホール係</h3><p>「今カートに何が入っているか」を覚えていて、画面と裏方をつなぐ司令塔。</p></div>
+        <div class="tag">lib/state/</div>
+      </div>
+      <div class="layer data reveal" data-d="2">
+        <div class="num">2</div>
+        <div><h3>データ ＝ 倉庫（台帳）</h3><p>商品・売上・途中のカートを<b>保存して取り出す</b>係。データベース担当。</p></div>
+        <div class="tag">lib/data/</div>
+      </div>
+      <div class="layer domain reveal" data-d="3">
+        <div class="num">1</div>
+        <div><h3>ドメイン ＝ 厨房（計算の心臓）</h3><p>税・値引き・お釣りを<b>正確に計算</b>する純粋なルール。画面も保存も知らない。だから一番に作る。</p></div>
+        <div class="tag">lib/domain/</div>
+      </div>
+    </div>
+    <p class="arrow-note">▲ 上の層は下の層に頼る。下（計算）がしっかりしていれば、上（画面）は安心して乗れる。</p>
+  </div>
+</section>
+
+<!-- ========================= 用語ミニ辞典 ========================= -->
+<section>
+  <div class="wrap">
+    <p class="kicker reveal">先に知っておくと楽な言葉</p>
+    <h2 class="h-sec reveal">用語ミニ辞典</h2>
+    <p class="sub reveal">全部覚えなくて大丈夫。地図の中で出てきたら、ここに戻ってくれば OK。</p>
+    <div class="terms">
+      <div class="term reveal" data-d="0"><div class="en">Dart</div><div class="jp">ダート</div><p>Flutter で使う言語。文章でいう「日本語」にあたる、書くための言葉。</p></div>
+      <div class="term reveal" data-d="1"><div class="en">Flutter</div><div class="jp">フラッター</div><p>1つのコードでスマホ・Web・PC アプリを作れる道具箱。今回は Web で動かす。</p></div>
+      <div class="term reveal" data-d="2"><div class="en">Widget</div><div class="jp">ウィジェット</div><p>画面の部品。ボタンも文字も並びも全部ウィジェット。積み木のように組む。</p></div>
+      <div class="term reveal" data-d="0"><div class="en">State</div><div class="jp">状態（ステート）</div><p>「今こうなっている」という変わりうる情報。カートの中身など。</p></div>
+      <div class="term reveal" data-d="1"><div class="en">Provider</div><div class="jp">プロバイダ</div><p>状態を画面のあちこちに配って、変わったら自動で描き直す仕組み。</p></div>
+      <div class="term reveal" data-d="2"><div class="en">SQLite / drift</div><div class="jp">データベース</div><p>データを表として保存する小さな金庫。drift はそれを Dart から安全に使う道具。</p></div>
+      <div class="term reveal" data-d="0"><div class="en">Pure function</div><div class="jp">純粋関数</div><p>同じ入力なら必ず同じ答えを返し、外に副作用がない計算。テストしやすい。</p></div>
+      <div class="term reveal" data-d="1"><div class="en">TDD</div><div class="jp">テスト駆動</div><p>「答え合わせ（テスト）」を先に書いてから中身を作る進め方。安心して進める。</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- ========================= ロードマップ ========================= -->
+<section>
+  <div class="wrap">
+    <p class="kicker reveal">作る順番</p>
+    <h2 class="h-sec reveal">ロードマップ ― 6つの駅をめぐる旅</h2>
+    <p class="sub reveal">一気に作ろうとしないこと。駅ごとに「動く小さな成果」を積み上げます。各駅に <b>何を / なぜ / 新しく出会う概念 / つまずき注意</b> を書きました。</p>
+
+    <div class="road">
+      <!-- 駅0 -->
+      <div class="station s0 reveal" data-d="0">
+        <div class="dot"><span class="ph">Phase 0</span>
+          <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7l9-4 9 4-9 4-9-4z"/><path d="M3 7v10l9 4 9-4V7"/></svg>
+        </div>
+        <div class="card body">
+          <h3>下ごしらえ ― 箱を用意する</h3>
+          <p class="goal">空のプロジェクトを作り、ブラウザで真っ白でも「起動した」を確認する。</p>
+          <div class="meta">
+            <div class="do"><div class="lbl">何を</div><p>Flutter を入れ、新しいプロジェクトを作成。Web で動くか1回試す。</p></div>
+            <div class="why"><div class="lbl">なぜ</div><p>土台が動かないまま機能を足すと、原因が「自分のコード」か「環境」か分からなくなる。</p></div>
+            <div class="new"><div class="lbl">出会う概念</div><p>プロジェクト構成、<span class="mono">pubspec.yaml</span>（部品リスト）。</p></div>
+            <div class="trip"><div class="lbl">つまずき注意</div><p>最初の起動は遅い。フリーズではないので待つ。</p></div>
+          </div>
+          <div class="codeline mono">flutter create pos_demo &nbsp;→&nbsp; flutter run -d chrome</div>
+        </div>
+      </div>
+
+      <!-- 駅1 -->
+      <div class="station s1 reveal" data-d="0">
+        <div class="dot"><span class="ph">Phase 1</span>
+          <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+        </div>
+        <div class="card body">
+          <h3>計算の心臓 ― 数字を正しく</h3>
+          <p class="goal">税・値引き・お釣りの計算だけを、画面なしで作る。先に「答え合わせ」を書く。</p>
+          <div class="meta">
+            <div class="do"><div class="lbl">何を</div><p>商品・明細・値引きの「型」を作り、<span class="mono">computeReceipt</span> という計算関数をテスト付きで育てる。</p></div>
+            <div class="why"><div class="lbl">なぜ</div><p>お金の計算が1円でも狂うと致命的。画面より先に、ここを鉄壁にする。</p></div>
+            <div class="new"><div class="lbl">出会う概念</div><p>純粋関数、TDD、整数で円を扱う、1円未満の切り捨て。</p></div>
+            <div class="trip"><div class="lbl">つまずき注意</div><p>小数で金額を持つと誤差が出る。<b>整数（円）</b>で計算するのが鉄則。</p></div>
+          </div>
+          <div class="callout tip">
+            <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="#13534f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6M10 22h4M12 2a7 7 0 0 0-4 12c.5.5 1 1.5 1 2h6c0-.5.5-1.5 1-2a7 7 0 0 0-4-12z"/></svg>
+            <div><b>テストファーストのコツ</b><p>「1000円の8%は税80円」のような例を先に書く → 失敗を確認 → 通るように中身を書く。これを小さく繰り返すと、後戻りがほぼ無くなる。</p></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 駅2 -->
+      <div class="station s2 reveal" data-d="0">
+        <div class="dot"><span class="ph">Phase 2</span>
+          <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14c0 1.7 4 3 9 3s9-1.3 9-3V5"/><path d="M3 12c0 1.7 4 3 9 3s9-1.3 9-3"/></svg>
+        </div>
+        <div class="card body">
+          <h3>記憶する ― 倉庫を建てる</h3>
+          <p class="goal">商品・売上・途中のカートを保存・取り出しできるようにする（データベース）。</p>
+          <div class="meta">
+            <div class="do"><div class="lbl">何を</div><p>表（テーブル）を定義し、保存／読み出し係（リポジトリ）を作る。drift がコードを自動生成。</p></div>
+            <div class="why"><div class="lbl">なぜ</div><p>「閉じたら消える」では実用にならない。会計記録は消えてはいけない。</p></div>
+            <div class="new"><div class="lbl">出会う概念</div><p>テーブル、リポジトリ（DB をしまう箱）、コード生成、スナップショット保存。</p></div>
+            <div class="trip"><div class="lbl">つまずき注意</div><p>Web で SQLite を使うには専用ファイル（WASM）の配置が要る。ここが最初の関門（下のつまずき集参照）。</p></div>
+          </div>
+          <div class="codeline mono">dart run build_runner build &nbsp;→&nbsp; 表の Dart コードが自動で生まれる</div>
+        </div>
+      </div>
+
+      <!-- 駅3 -->
+      <div class="station s3 reveal" data-d="0">
+        <div class="dot"><span class="ph">Phase 3</span>
+          <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><circle cx="5" cy="5" r="2"/><circle cx="19" cy="5" r="2"/><circle cx="5" cy="19" r="2"/><circle cx="19" cy="19" r="2"/><path d="M7 7l3 3M17 7l-3 3M7 17l3-3M17 17l-3-3"/></svg>
+        </div>
+        <div class="card body">
+          <h3>司令塔 ― 計算と倉庫をつなぐ</h3>
+          <p class="goal">「カートに入れる／数量を変える／会計する」操作を持つ司令塔（状態）を作る。</p>
+          <div class="meta">
+            <div class="do"><div class="lbl">何を</div><p><span class="mono">ChangeNotifier</span> を使い、操作のたびに計算（Phase1）を呼び、保存（Phase2）し、画面へ「変わったよ」と知らせる。</p></div>
+            <div class="why"><div class="lbl">なぜ</div><p>画面に計算や保存を書くと散らかる。1か所に集めると追いやすい。</p></div>
+            <div class="new"><div class="lbl">出会う概念</div><p>状態管理、provider、通知（notifyListeners）。</p></div>
+            <div class="trip"><div class="lbl">つまずき注意</div><p>状態を直接いじらず、必ずメソッド経由に。保存と通知をセットで動かすため。</p></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 駅4 -->
+      <div class="station s4 reveal" data-d="0">
+        <div class="dot"><span class="ph">Phase 4</span>
+          <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+        </div>
+        <div class="card body">
+          <h3>画面 ― 触れる形にする</h3>
+          <p class="goal">商品グリッド・カート・会計ダイアログ・レシート・売上・商品管理を組む。</p>
+          <div class="meta">
+            <div class="do"><div class="lbl">何を</div><p>ウィジェットを積んで画面に。司令塔（Phase3）を「見て」描き、タップで操作を呼ぶだけ。</p></div>
+            <div class="why"><div class="lbl">なぜ</div><p>中身（計算・保存・状態）が完成しているので、画面は安心して薄く作れる。</p></div>
+            <div class="new"><div class="lbl">出会う概念</div><p>ウィジェットの組み立て、Material（既製の見た目）、ダイアログ。</p></div>
+            <div class="trip"><div class="lbl">つまずき注意</div><p>非同期処理の後に画面が閉じている場合がある（<span class="mono">mounted</span> 確認が必要）。</p></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 駅5 -->
+      <div class="station s5 reveal" data-d="0">
+        <div class="dot"><span class="ph">Phase 5</span>
+          <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+        </div>
+        <div class="card body">
+          <h3>仕上げ ― 通しで確かめる</h3>
+          <p class="goal">最初から最後まで実際に触り、リロードしても残るかを確認。気になる所を磨く。</p>
+          <div class="meta">
+            <div class="do"><div class="lbl">何を</div><p>レジ打ち→値引き→会計→お釣り→レシート→売上→商品管理を通しで確認。リロードして保存も確認。</p></div>
+            <div class="why"><div class="lbl">なぜ</div><p>部品が動いても、つないだ時に初めて気づく不具合がある。</p></div>
+            <div class="new"><div class="lbl">出会う概念</div><p>結合確認、手で触る検証、コードの読みやすさ仕上げ（コメント整備）。</p></div>
+            <div class="trip"><div class="lbl">つまずき注意</div><p>「動いた」で満足せず、変な金額・空カート・お釣り不足など意地悪な操作も試す。</p></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ========================= なぜこの順番 ========================= -->
+<section>
+  <div class="wrap">
+    <p class="kicker reveal">迷ったら思い出す</p>
+    <h2 class="h-sec reveal">なぜ「画面」を最後に作るの？</h2>
+    <div class="why-grid">
+      <div class="why-card reveal" data-d="0">
+        <h3><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#1b7f79" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>エンジンが先、ダッシュボードは後</h3>
+        <p>車は、メーターの飾りより先にエンジンが要る。アプリも、見た目より先に「正しく計算して保存する中身」を作る。中身が固いほど、画面づくりは速く・安全になる。</p>
+      </div>
+      <div class="why-card reveal" data-d="1">
+        <h3><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#e08a2b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l2.4 7.4H22l-6 4.6 2.3 7.4L12 17l-6.3 4.4L8 14 2 9.4h7.6z"/></svg>テストできる所から作る</h3>
+        <p>計算は画面なしで「答え合わせ」ができる。だから一番テストしやすい計算を最初に固める。画面は人の目で確かめる部分が多いので、最後に回すのが効率的。</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ========================= つまずき集 ========================= -->
+<section>
+  <div class="wrap">
+    <p class="kicker reveal">先回り</p>
+    <h2 class="h-sec reveal">つまずきポイント集</h2>
+    <p class="sub reveal">多くの初心者がここで止まります。先に知っていれば、止まりません。</p>
+    <div class="traps">
+      <div class="trap reveal" data-d="0">
+        <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><path d="M12 9v4M12 17h.01"/></svg>
+        <div><b>Web で SQLite を使うには一手間</b><p>スマホ用の方法は Web で動きません。drift の「Web セットアップ」に従い、<span class="mono">sqlite3.wasm</span> と <span class="mono">drift_worker.js</span> を <span class="mono">web/</span> に置きます。バージョンを合わせるのがコツ。</p></div>
+      </div>
+      <div class="trap reveal" data-d="1">
+        <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><path d="M12 9v4M12 17h.01"/></svg>
+        <div><b>金額は「整数の円」で</b><p>小数（0.08 をかける等）で持つと、ほんの少しの誤差が積もって合計がズレます。円を整数で扱い、税は <span class="mono">×8÷100</span> のように計算して切り捨てる。</p></div>
+      </div>
+      <div class="trap reveal" data-d="2">
+        <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><path d="M12 9v4M12 17h.01"/></svg>
+        <div><b>コードを変えたら自動生成も作り直す</b><p>drift の表を直したら <span class="mono">build_runner</span> を再実行。生成ファイル（<span class="mono">*.g.dart</span>）は手で編集しない。</p></div>
+      </div>
+      <div class="trap reveal" data-d="0">
+        <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><path d="M12 9v4M12 17h.01"/></svg>
+        <div><b>環境によって実行方法が変わる</b><p>例えば WSL（Windows 上の Linux）から Windows 側の Flutter を使う場合、コマンドの呼び方やプロジェクトの置き場所に癖があります。自分の環境で「最初の1回」を必ず通してから先へ。</p></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ========================= 次の一歩 ========================= -->
+<section>
+  <div class="wrap">
+    <p class="kicker reveal">作りきった後で</p>
+    <h2 class="h-sec reveal">次の一歩</h2>
+    <p class="sub reveal">完成したら、小さな追加で力がぐっと伸びます。</p>
+    <div class="next">
+      <div class="n reveal" data-d="0"><h4>バーコード入力</h4><p>商品コードで素早く追加。検索の練習に。</p></div>
+      <div class="n reveal" data-d="1"><h4>日別の売上グラフ</h4><p>保存した売上を集計してグラフに。</p></div>
+      <div class="n reveal" data-d="2"><h4>カード決済（模擬）</h4><p>支払い方法を増やす。分岐の練習に。</p></div>
+      <div class="n reveal" data-d="0"><h4>レシート印刷／PDF</h4><p>出力の幅を広げる。</p></div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    POS レジデモ ― ゼロからの道案内 ／ Flutter (Web) · Dart · drift(SQLite) · provider<br>
+    一段ずつ。動く小さな成果を積み上げれば、レジは必ず動きます。
+  </div>
+</footer>
+
+<script>
+  // スクロール進捗バー（旅の進み具合）
+  const bar = document.getElementById('progress');
+  const onScroll = () => {
+    const h = document.documentElement;
+    const max = h.scrollHeight - h.clientHeight;
+    bar.style.width = (max > 0 ? (h.scrollTop / max) * 100 : 0) + '%';
+  };
+  document.addEventListener('scroll', onScroll, {passive:true});
+  onScroll();
+
+  // 段階的な出現。JS無効でも内容は見える（.reveal は in が付かなくても文章は読める前提で、
+  // ここでは未対応環境向けに即表示へフォールバックする）。
+  const items = document.querySelectorAll('.reveal');
+  if (!('IntersectionObserver' in window) ||
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    items.forEach(el => el.classList.add('in'));
+  } else {
+    const io = new IntersectionObserver((entries) => {
+      entries.forEach(e => { if (e.isIntersecting){ e.target.classList.add('in'); io.unobserve(e.target); }});
+    }, {threshold:0.12, rootMargin:'0px 0px -8% 0px'});
+    items.forEach(el => io.observe(el));
+  }
+</script>
+</body>
+</html>
