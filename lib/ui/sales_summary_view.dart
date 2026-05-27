@@ -3,6 +3,12 @@ import 'package:provider/provider.dart';
 import '../data/sales_repository.dart';
 import 'widgets/product_grid.dart' show yen;
 
+/// HH:mm:ss 形式で時刻を整形する（intl 不使用）。
+String _formatTime(DateTime t) {
+  String pad(int n) => n.toString().padLeft(2, '0');
+  return '${pad(t.hour)}:${pad(t.minute)}:${pad(t.second)}';
+}
+
 /// セッション・累計の売上集計（DB から）。
 class SalesSummaryView extends StatelessWidget {
   const SalesSummaryView({super.key});
@@ -42,6 +48,34 @@ class SalesSummaryView extends StatelessWidget {
                   trailing: Text(yen(entry.value)),
                 ),
               if (s.taxByRate.isEmpty) const ListTile(title: Text('まだ売上がありません')),
+              const SizedBox(height: 24),
+              Text('会計履歴', style: t.titleMedium),
+              const SizedBox(height: 8),
+              StreamBuilder<List<SaleListItem>>(
+                stream: repo.watchRecent(),
+                builder: (context, histSnap) {
+                  if (!histSnap.hasData) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+                  final items = histSnap.data!;
+                  if (items.isEmpty) {
+                    return const ListTile(title: Text('まだ会計履歴がありません'));
+                  }
+                  return Column(
+                    children: [
+                      for (final item in items)
+                        ListTile(
+                          leading: Text(
+                            _formatTime(item.time),
+                            style: t.bodyMedium?.copyWith(fontFeatures: const []),
+                          ),
+                          title: Text('合計 ${yen(item.grandTotal)} / 釣 ${yen(item.change)}'),
+                          dense: true,
+                        ),
+                    ],
+                  );
+                },
+              ),
             ],
           );
         },

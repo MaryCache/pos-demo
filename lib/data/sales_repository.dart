@@ -3,6 +3,21 @@ import '../domain/receipt.dart';
 import 'database.dart';
 import 'mappers.dart';
 
+/// 売上一覧の1行（軽量表示用）。
+/// 重い Receipt 再構築をせず、一覧に必要な情報だけを保持する。
+class SaleListItem {
+  final int id;
+  final DateTime time;
+  final int grandTotal;
+  final int change;
+  const SaleListItem({
+    required this.id,
+    required this.time,
+    required this.grandTotal,
+    required this.change,
+  });
+}
+
 /// 売上集計の結果。
 class SalesSummary {
   final int count;            // 会計件数
@@ -48,6 +63,21 @@ class SalesRepository {
       }
       return saleId;
     });
+  }
+
+  /// 直近の会計を新しい順に購読する（一覧表示用）。
+  Stream<List<SaleListItem>> watchRecent({int limit = 50}) {
+    final query = db.select(db.sales)
+      ..orderBy([(t) => OrderingTerm(expression: t.createdAt, mode: OrderingMode.desc)])
+      ..limit(limit);
+    return query.watch().map((rows) => rows
+        .map((r) => SaleListItem(
+              id: r.id,
+              time: DateTime.fromMillisecondsSinceEpoch(r.createdAt),
+              grandTotal: r.grandTotal,
+              change: r.change,
+            ))
+        .toList());
   }
 
   /// 売上集計（件数・合計・税率別税額）を購読する。

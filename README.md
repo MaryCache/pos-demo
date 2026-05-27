@@ -1,17 +1,31 @@
-# pos_demo
+# pos-demo
 
-A new Flutter project.
+汎用 POS レジのデモアプリ（Flutter Web）。
 
-## Getting Started
+## 主な機能
 
-This project is a starting point for a Flutter application.
+- **商品 CRUD** — 商品名・税抜単価・税率（8% / 10%）・カテゴリの登録・編集・削除
+- **軽減税率対応** — 8%・10% の混在カートを正確に計算
+- **値引き** — 単品値引き（定額・率）・全体値引き（定額・率）
+- **現金会計とお釣り** — お預かり金額を入力しお釣りを表示
+- **レシート** — 会計後にレシートをダイアログ表示
+- **売上集計と会計履歴** — 件数・合計・税率別税額のリアルタイム集計、直近 50 件の履歴一覧
+- **カテゴリフィルタ** — 商品グリッドのカテゴリ別絞り込みチップ
+- **カート退避** — アプリをリロードしてもカートが復元される
+- **永続化** — [drift](https://drift.simonbinder.eu/) WASM でブラウザ内 SQLite
 
-A few resources to get you started if this is your first Flutter project:
+## 動かし方
 
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
+```bash
+flutter run -d chrome
+```
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+## 永続化について
+
+drift はブラウザの利用可能なストレージ実装を自動選択します。
+
+- **OPFS**（SharedArrayBuffer 等が必要）: COOP/COEP ヘッダが有効なサーバーで動作
+- **IndexedDB**: COOP/COEP が未設定の場合のフォールバック。リロード後もデータは保持されます
+
+起動時のコンソールに `drift web: chosen=...` が出力され、どの実装が選ばれたかを確認できます。
+`missing=...` に値がある場合はブラウザ機能不足によるフォールバックを示します。

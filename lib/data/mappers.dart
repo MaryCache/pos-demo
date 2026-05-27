@@ -20,15 +20,6 @@ ProductsCompanion toProductsCompanion(Product p) => ProductsCompanion(
       category: Value(p.category),
     );
 
-/// 更新用 Companion（id 指定）。
-ProductsCompanion toProductsCompanionWithId(Product p) => ProductsCompanion(
-      id: Value(p.id!),
-      name: Value(p.name),
-      unitPriceExclTax: Value(p.unitPriceExclTax),
-      taxRate: Value(p.taxRate),
-      category: Value(p.category),
-    );
-
 /// DiscountType ⇔ 文字列。
 String? discountTypeToText(DiscountType? t) => t?.name;
 DiscountType? discountTypeFromText(String? s) =>

@@ -19,7 +19,6 @@ class RegisterModel extends ChangeNotifier {
 
   List<CartLine> get lines => List.unmodifiable(_lines);
   Discount? get orderDiscount => _orderDiscount;
-  bool get isEmpty => _lines.isEmpty;
 
   /// 起動時に退避カートを復元する。
   Future<void> init() async {

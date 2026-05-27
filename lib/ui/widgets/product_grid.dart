@@ -15,31 +15,89 @@ String yen(int v) {
   return '${v < 0 ? '-' : ''}¥$buf';
 }
 
-/// 商品をタップでカートに追加するグリッド。
-class ProductGrid extends StatelessWidget {
+/// 商品をタップでカートに追加するグリッド。カテゴリフィルタ付き。
+/// byCategory を活用して未選択時は全商品、選択時はそのカテゴリのみを表示する。
+class ProductGrid extends StatefulWidget {
   const ProductGrid({super.key});
+
+  @override
+  State<ProductGrid> createState() => _ProductGridState();
+}
+
+class _ProductGridState extends State<ProductGrid> {
+  /// null = 全部、非null = 絞り込み中のカテゴリ名。
+  String? _selectedCategory;
 
   @override
   Widget build(BuildContext context) {
     final catalog = context.watch<CatalogModel>();
     final register = context.read<RegisterModel>();
-    final products = catalog.products;
-    if (products.isEmpty) {
-      return const Center(child: Text('商品がありません。「商品管理」で追加してください'));
+    final byCategory = catalog.byCategory;
+
+    // 選択カテゴリが商品変更で消えた場合にリセット。
+    if (_selectedCategory != null && !byCategory.containsKey(_selectedCategory)) {
+      _selectedCategory = null;
     }
-    return GridView.builder(
-      padding: const EdgeInsets.all(12),
-      gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-        maxCrossAxisExtent: 180,
-        mainAxisExtent: 110,
-        crossAxisSpacing: 12,
-        mainAxisSpacing: 12,
-      ),
-      itemCount: products.length,
-      itemBuilder: (context, i) => _ProductCard(
-        product: products[i],
-        onTap: () => register.addProduct(products[i]),
-      ),
+
+    final products = _selectedCategory == null
+        ? catalog.products
+        : (byCategory[_selectedCategory] ?? const []);
+
+    return Column(
+      children: [
+        if (byCategory.isNotEmpty)
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            child: Row(
+              children: [
+                // 「全部」チップ
+                Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: ChoiceChip(
+                    label: const Text('全部'),
+                    selected: _selectedCategory == null,
+                    onSelected: (_) => setState(() => _selectedCategory = null),
+                  ),
+                ),
+                // カテゴリごとのチップ（出現順を保持）
+                for (final category in byCategory.keys)
+                  Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: ChoiceChip(
+                      label: Text(category),
+                      selected: _selectedCategory == category,
+                      onSelected: (_) => setState(() => _selectedCategory = category),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        Expanded(
+          child: products.isEmpty
+              ? Center(
+                  child: Text(
+                    _selectedCategory == null
+                        ? '商品がありません。「商品管理」で追加してください'
+                        : '「$_selectedCategory」の商品がありません',
+                  ),
+                )
+              : GridView.builder(
+                  padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+                  gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+                    maxCrossAxisExtent: 180,
+                    mainAxisExtent: 110,
+                    crossAxisSpacing: 12,
+                    mainAxisSpacing: 12,
+                  ),
+                  itemCount: products.length,
+                  itemBuilder: (context, i) => _ProductCard(
+                    product: products[i],
+                    onTap: () => register.addProduct(products[i]),
+                  ),
+                ),
+        ),
+      ],
     );
   }
 }

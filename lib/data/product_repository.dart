@@ -26,9 +26,4 @@ class ProductRepository {
     final row = await (db.selectOnly(db.products)..addColumns([c])).getSingle();
     return row.read(c) ?? 0;
   }
-
-  Future<Product?> findById(int id) async {
-    final row = await (db.select(db.products)..where((t) => t.id.equals(id))).getSingleOrNull();
-    return row == null ? null : toProduct(row);
-  }
 }
