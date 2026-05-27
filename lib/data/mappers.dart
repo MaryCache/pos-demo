@@ -20,8 +20,10 @@ ProductsCompanion toProductsCompanion(Product p) => ProductsCompanion(
       category: Value(p.category),
     );
 
-/// DiscountType ⇔ 文字列。
+/// DiscountType を永続化用の文字列（enum 名）に変換。null は null のまま。
 String? discountTypeToText(DiscountType? t) => t?.name;
+
+/// 永続化文字列から DiscountType を復元。null は null のまま。
 DiscountType? discountTypeFromText(String? s) =>
     s == null ? null : DiscountType.values.firstWhere((e) => e.name == s);
 

@@ -2,6 +2,7 @@ import 'package:drift/drift.dart';
 
 // drift の生成データクラス名が domain の Product 等と衝突しないよう Row サフィックスにする。
 
+/// 商品マスタ。価格は税抜（円）、taxRate は 8 または 10。
 @DataClassName('ProductRow')
 class Products extends Table {
   IntColumn get id => integer().autoIncrement()();
@@ -11,6 +12,7 @@ class Products extends Table {
   TextColumn get category => text()();
 }
 
+/// 確定した会計1件のヘッダ（合計・値引き・預かり・釣り）。
 @DataClassName('SaleRow')
 class Sales extends Table {
   IntColumn get id => integer().autoIncrement()();
@@ -21,6 +23,8 @@ class Sales extends Table {
   IntColumn get change => integer()();
 }
 
+/// 会計明細のスナップショット。商品名・価格・税率をコピー保持し、
+/// 後から商品マスタを編集・削除しても過去の売上が変わらないようにする。
 @DataClassName('SaleLineRow')
 class SaleLines extends Table {
   IntColumn get id => integer().autoIncrement()();
@@ -34,6 +38,7 @@ class SaleLines extends Table {
   IntColumn get lineExclAfter => integer()();
 }
 
+/// 会計の税率グループ別集計のスナップショット（売上集計の税額源）。
 @DataClassName('SaleTaxGroupRow')
 class SaleTaxGroups extends Table {
   IntColumn get id => integer().autoIncrement()();
@@ -43,6 +48,7 @@ class SaleTaxGroups extends Table {
   IntColumn get tax => integer()();
 }
 
+/// 会計途中のカート明細を退避する下書きテーブル（リロード復元用）。
 @DataClassName('DraftCartLineRow')
 class DraftCartLines extends Table {
   IntColumn get id => integer().autoIncrement()();
@@ -53,6 +59,7 @@ class DraftCartLines extends Table {
   IntColumn get sortOrder => integer()();
 }
 
+/// 下書きカートの全体値引きを保持する単一行テーブル。
 @DataClassName('DraftMetaRow')
 class DraftMeta extends Table {
   IntColumn get id => integer()(); // 固定で 1 を使う単一行

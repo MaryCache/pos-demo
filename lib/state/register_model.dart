@@ -17,7 +17,11 @@ class RegisterModel extends ChangeNotifier {
 
   RegisterModel(this.cartRepo, this.salesRepo);
 
+  /// 現在のカート明細（変更不可ビュー）。
+  /// 変更は必ずモデルのメソッド経由にすること。永続化と notifyListeners を一体に保つため。
   List<CartLine> get lines => List.unmodifiable(_lines);
+
+  /// 現在の全体値引き（未設定なら null）。
   Discount? get orderDiscount => _orderDiscount;
 
   /// 起動時に退避カートを復元する。
@@ -34,6 +38,7 @@ class RegisterModel extends ChangeNotifier {
 
   Future<void> _persistLines() => cartRepo.replaceLines(_lines);
 
+  /// 商品をカートに追加する。同一商品が既にあれば新規行を増やさず数量を+1する。
   Future<void> addProduct(Product p) async {
     final idx = _lines.indexWhere((l) => l.product.id == p.id);
     if (idx >= 0) {
@@ -45,6 +50,7 @@ class RegisterModel extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// 指定明細の数量を [delta] だけ増減する。0以下になった明細は除去する。
   Future<void> changeQuantity(int index, int delta) async {
     final next = _lines[index].quantity + delta;
     if (next <= 0) {
@@ -56,18 +62,21 @@ class RegisterModel extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// 指定明細をカートから削除する。
   Future<void> removeLine(int index) async {
     _lines.removeAt(index);
     await _persistLines();
     notifyListeners();
   }
 
+  /// 指定明細の単品値引きを設定する（null で解除）。
   Future<void> setLineDiscount(int index, Discount? d) async {
     _lines[index] = _lines[index].copyWith(lineDiscount: d);
     await _persistLines();
     notifyListeners();
   }
 
+  /// 全体値引きを設定する（null で解除）。
   Future<void> setOrderDiscount(Discount? d) async {
     _orderDiscount = d;
     await cartRepo.setOrderDiscount(d);

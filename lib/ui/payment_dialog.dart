@@ -8,12 +8,14 @@ import 'widgets/product_grid.dart' show yen;
 /// 会計ダイアログを開く。確定したらレシートを表示する。
 Future<void> openPaymentDialog(BuildContext context) async {
   final register = context.read<RegisterModel>();
+  // 合計はダイアログを開く前に確定値として控える。会計確定でカートが空になり receiptFor が0になるため。
   final grandTotal = register.receiptFor(0).grandTotal;
 
   final receipt = await showDialog<Receipt>(
     context: context,
     builder: (_) => _PaymentDialog(register: register, grandTotal: grandTotal),
   );
+  // await を挟むと context が無効化されている可能性があるため mounted を確認してから使う。
   if (receipt != null && context.mounted) {
     await showReceipt(context, receipt);
   }
@@ -31,6 +33,7 @@ class _PaymentDialog extends StatefulWidget {
 class _PaymentDialogState extends State<_PaymentDialog> {
   int _tendered = 0;
 
+  // 9999999 は入力上限。誤タップの連打で桁が溢れ非現実的な預かり額になるのを防ぐ天井。
   void _append(int digit) => setState(() => _tendered = (_tendered * 10 + digit).clamp(0, 9999999));
   void _set(int v) => setState(() => _tendered = v);
   void _clear() => setState(() => _tendered = 0);
@@ -80,6 +83,7 @@ class _PaymentDialogState extends State<_PaymentDialog> {
           onPressed: enough
               ? () async {
                   final receipt = await widget.register.checkout(_tendered);
+                  // checkout の await 後に dialog が閉じている場合に備え mounted を確認。
                   if (context.mounted) Navigator.pop(context, receipt);
                 }
               : null,

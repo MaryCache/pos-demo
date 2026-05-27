@@ -20,9 +20,14 @@ class SaleListItem {
 
 /// 売上集計の結果。
 class SalesSummary {
-  final int count;            // 会計件数
-  final int total;            // 税込合計
-  final Map<int, int> taxByRate; // 税率 -> 税額合計
+  /// 会計件数。
+  final int count;
+
+  /// 税込合計（全会計の grandTotal の総和）。
+  final int total;
+
+  /// 税率（8/10）ごとの税額合計。
+  final Map<int, int> taxByRate;
   const SalesSummary({required this.count, required this.total, required this.taxByRate});
 }
 
@@ -32,6 +37,7 @@ class SalesRepository {
   SalesRepository(this.db);
 
   /// 会計1件を sales / sale_lines / sale_tax_groups にトランザクションで保存し、sale id を返す。
+  /// 明細は商品名・価格・税率を値コピーで残す（商品マスタの後日編集・削除が過去売上に波及しないため）。
   Future<int> save(Receipt r) {
     return db.transaction(() async {
       final saleId = await db.into(db.sales).insert(SalesCompanion.insert(
@@ -81,6 +87,8 @@ class SalesRepository {
   }
 
   /// 売上集計（件数・合計・税率別税額）を購読する。
+  /// sales の更新ごとに税グループ全件を読み直す。デモ規模では十分に単純で、
+  /// 件数が増えれば sales と sale_tax_groups の join／集計クエリへ置き換える余地がある。
   Stream<SalesSummary> watchSummary() {
     return db.select(db.sales).watch().asyncMap((sales) async {
       final count = sales.length;

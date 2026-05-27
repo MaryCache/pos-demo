@@ -3,6 +3,7 @@ import 'tables.dart';
 
 part 'database.g.dart';
 
+/// アプリ全体の drift データベース。全テーブルを束ねる単一エントリポイント。
 @DriftDatabase(
   tables: [Products, Sales, SaleLines, SaleTaxGroups, DraftCartLines, DraftMeta],
 )

@@ -28,6 +28,8 @@ Map<int, int> distributeOrderDiscount(Map<int, int> subtotals, int orderDiscount
     alloc[e.key] = d;
     allocated += d;
   }
+  // 各グループの按分は ~/ で切り捨てたので合計が値引き額に1～数円届かない。
+  // 端数は税抜小計が最大のグループへ寄せ、按分合計＝値引き額を保証する（値引き総額がずれない）。
   final remainder = orderDiscountAmount - allocated;
   if (remainder != 0) {
     final maxRate = subtotals.entries.reduce((a, b) => a.value >= b.value ? a : b).key;
@@ -71,6 +73,7 @@ Receipt computeReceipt({
       DiscountType.amount => orderDiscount.value,
       DiscountType.percent => totalExcl * orderDiscount.value ~/ 100,
     };
+    // 値引きは税抜小計を上限・下限0でクランプ。マイナス課税ベース＝負の税額を作らないため。
     if (orderDiscountAmount > totalExcl) orderDiscountAmount = totalExcl;
     if (orderDiscountAmount < 0) orderDiscountAmount = 0;
   }

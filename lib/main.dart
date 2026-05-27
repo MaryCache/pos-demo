@@ -8,6 +8,7 @@ import 'data/seed.dart';
 import 'state/register_model.dart';
 import 'ui/app.dart';
 
+/// 起動処理。DB を開き、Repository/Model を組み立て、初回シードと退避カート復元を経て起動する。
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   final db = AppDatabase(await openWebExecutor());

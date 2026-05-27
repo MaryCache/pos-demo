@@ -9,6 +9,8 @@ class CartLine {
 
   const CartLine({required this.product, required this.quantity, this.lineDiscount});
 
+  /// 一部のフィールドだけ差し替えた複製を返す。
+  /// lineDiscount に null を明示的に渡すと値引きを解除でき、省略時は現状維持。
   CartLine copyWith({Product? product, int? quantity, Object? lineDiscount = _sentinel}) {
     return CartLine(
       product: product ?? this.product,

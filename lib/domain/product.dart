@@ -15,6 +15,7 @@ class Product {
     required this.category,
   });
 
+  /// 一部のフィールドだけ差し替えた複製を返す。
   Product copyWith({int? id, String? name, int? unitPriceExclTax, int? taxRate, String? category}) {
     return Product(
       id: id ?? this.id,

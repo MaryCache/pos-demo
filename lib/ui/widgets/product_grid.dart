@@ -4,7 +4,8 @@ import '../../domain/product.dart';
 import '../../state/catalog_model.dart';
 import '../../state/register_model.dart';
 
-/// 円表示のヘルパ（3桁区切り）。
+/// 整数の円額を3桁区切りの表示文字列にする（例: -1234 → "-¥1,234"）。
+/// 共通の金額表示ヘルパとしてここに置き、各 UI から `show yen` で取り込む（intl 非依存）。
 String yen(int v) {
   final s = v.abs().toString();
   final buf = StringBuffer();
