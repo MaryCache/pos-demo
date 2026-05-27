@@ -1,8 +1,12 @@
 # POS レジシステム デモ 設計書
 
 最終更新: 2026-05-27
-対象: `~/projects/pos-demo/`（Flutter Web デモ）
+対象: `C:\Users\mymym\pos-demo`（WSL からは `/mnt/c/Users/mymym/pos-demo`）。Flutter Web デモ。
 ステータス: 設計確定（ブレインストーミング承認済み・SQLite永続化を反映）
+
+> 実行環境メモ: Flutter は Windows 側（3.44.0 / Dart 3.12.0）。WSL bash から直接
+> `flutter` は CRLF で壊れるため、コマンドは `cmd.exe /c "cd /d C:\Users\mymym\pos-demo && flutter.bat ..."`
+> 経由で実行する。ファイル編集は WSL から `/mnt/c/Users/mymym/pos-demo` に対して行う。
 
 ## 1. 目的とスコープ
 
