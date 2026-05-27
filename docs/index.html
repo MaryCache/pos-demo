@@ -63,7 +63,7 @@
   .kicker{font-family:"JetBrains Mono";font-size:.78rem;letter-spacing:.18em;text-transform:uppercase;color:var(--amber);font-weight:600;}
   .h-sec{font-size:clamp(1.6rem,3.4vw,2.3rem);margin:8px 0 6px;}
   .sub{color:var(--ink-soft);max-width:64ch;margin:0 0 8px;}
-  .traits{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px;margin-top:30px;}
+  .traits{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,280px),1fr));gap:16px;margin-top:30px;}
   .trait{background:var(--paper-2);border:1.5px solid var(--line);border-radius:var(--radius);padding:22px 24px;
     position:relative;overflow:hidden;}
   .trait::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--teal);}
@@ -89,6 +89,8 @@
   @media(max-width:680px){.piece-head{grid-template-columns:auto 1fr;}.piece-head .file{display:none;}}
 
   .cols{display:grid;grid-template-columns:1fr 1.25fr;gap:24px;align-items:stretch;}
+  /* グリッド子は min-width:auto だと中の <pre> 長行で列が膨らみ崩れる。0 にして収める */
+  .cols > *{min-width:0;}
   @media(max-width:900px){.cols{grid-template-columns:1fr;}}
   .panel-label{font-family:"JetBrains Mono";font-size:.74rem;letter-spacing:.14em;text-transform:uppercase;
     color:var(--muted);margin:0 0 10px;display:flex;align-items:center;gap:8px;}
@@ -104,7 +106,8 @@
   /* コードパネル */
   .code{display:flex;flex-direction:column;}
   pre{margin:0;background:var(--code-bg);color:var(--code-fg);border-radius:var(--radius);
-    padding:20px 22px;overflow-x:auto;font-size:.83rem;line-height:1.7;flex:1;box-shadow:var(--shadow);}
+    padding:20px 22px;overflow-x:auto;font-size:.83rem;line-height:1.7;flex:1;box-shadow:var(--shadow);
+    max-width:100%;-webkit-overflow-scrolling:touch;}
   pre .cm{color:var(--code-dim);font-style:italic;}
   /* 特徴トークンのハイライト＋番号 */
   .tk{background:var(--code-mark);border-bottom:1.5px solid var(--code-mark-line);border-radius:3px;padding:0 .14em;}
@@ -116,13 +119,13 @@
   /* 特徴解説 */
   .feats{margin-top:22px;}
   .feats > .panel-label{margin-bottom:14px;}
-  .fgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:14px;}
+  .fgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,320px),1fr));gap:14px;}
   .f{background:var(--paper-2);border:1.5px solid var(--line);border-radius:12px;padding:16px 18px;
     display:grid;grid-template-columns:auto 1fr;gap:12px;}
   .f .rf{align-self:start;margin-top:3px;}
   .f b{font-family:"Zen Old Mincho";font-size:1rem;}
   .f b .t{font-family:"JetBrains Mono";font-size:.86em;background:#f0ece2;border-radius:5px;padding:1px 6px;color:var(--teal-deep);margin-left:4px;}
-  .f p{margin:5px 0 0;font-size:.9rem;color:var(--ink-soft);}
+  .f p{margin:5px 0 0;font-size:.9rem;color:var(--ink-soft);overflow-wrap:anywhere;}
 
   /* ===== 4層リキャップ ===== */
   .recap{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:28px;}
@@ -137,6 +140,29 @@
 
   .reveal{opacity:0;transform:translateY(22px);transition:opacity .7s cubic-bezier(.2,.7,.2,1),transform .7s cubic-bezier(.2,.7,.2,1);}
   .reveal.in{opacity:1;transform:none;}
+
+  /* ===== スマホ ===== */
+  @media(max-width:560px){
+    body{line-height:1.8;}
+    .wrap{padding:0 16px;}
+    section{padding:44px 0;}
+    .hero{padding:60px 0 32px;}
+    .hero .lead{font-size:1.02rem;}
+    .pill{font-size:.78rem;}
+    .traits{gap:12px;margin-top:22px;}
+    .trait{padding:18px 18px;}
+    .legend{padding:18px 18px;}
+    .piece-head{gap:12px;margin-bottom:20px;}
+    .pno{font-size:1.9rem;}
+    .cols{gap:16px;}
+    .algo{padding:18px 18px;}
+    .algo ol{padding-left:1.2em;}
+    pre{padding:16px 14px;font-size:.76rem;line-height:1.65;border-radius:12px;}
+    .fgrid{gap:10px;}
+    .f{padding:14px 14px;gap:10px;}
+    .recap{gap:10px;}
+  }
+
   @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto;}.reveal{opacity:1;transform:none;transition:none;}#progress{transition:none;}}
 </style>
 <noscript><style>.reveal{opacity:1;transform:none;}</style></noscript>
