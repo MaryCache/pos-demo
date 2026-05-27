@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'product_admin_view.dart';
 import 'sales_summary_view.dart';
 import 'widgets/cart_panel.dart';
 import 'widgets/product_grid.dart';
@@ -13,6 +14,13 @@ class PosScreen extends StatelessWidget {
       appBar: AppBar(
         title: const Text('POS デモ'),
         actions: [
+          IconButton(
+            tooltip: '商品管理',
+            icon: const Icon(Icons.inventory_2_outlined),
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const ProductAdminView()),
+            ),
+          ),
           IconButton(
             tooltip: '売上集計',
             icon: const Icon(Icons.bar_chart),
