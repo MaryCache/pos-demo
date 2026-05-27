@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'sales_summary_view.dart';
 import 'widgets/cart_panel.dart';
 import 'widgets/product_grid.dart';
 
@@ -11,7 +12,15 @@ class PosScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text('POS デモ'),
-        actions: const [],
+        actions: [
+          IconButton(
+            tooltip: '売上集計',
+            icon: const Icon(Icons.bar_chart),
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const SalesSummaryView()),
+            ),
+          ),
+        ],
       ),
       body: Row(
         children: const [
