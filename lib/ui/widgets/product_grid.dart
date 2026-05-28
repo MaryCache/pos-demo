@@ -29,21 +29,37 @@ class _ProductGridState extends State<ProductGrid> {
   /// null = 全部、非null = 絞り込み中のカテゴリ名。
   String? _selectedCategory;
 
-  /// カテゴリ選択チップ。Material3 既定だと CJK フォントで縦文字メトリクスが詰まり
-  /// ラベルが見切れることがあるため、行高さ・内部 padding・タップ領域を明示する。
+  /// カテゴリ選択チップ。
+  /// 既製の ChoiceChip は CJK ラベルで intrinsic 幅計算が詰まり、文字が1〜2文字に
+  /// クランプされて右が見切れる挙動が出ることがある（CanvasKit + Material3 の組合せで顕在化）。
+  /// 自作で Material+InkWell+Padding+Text に置き換えることで、Text が自分の intrinsic
+  /// 幅にきちんとサイズされ、CJK でも崩れない。
   Widget _categoryChip(String label, bool selected, VoidCallback onTap) {
+    final scheme = Theme.of(context).colorScheme;
+    final base = Theme.of(context).textTheme.labelLarge ?? const TextStyle(fontSize: 14);
     return Padding(
       padding: const EdgeInsets.only(right: 8),
-      child: ChoiceChip(
-        label: Text(label),
-        // height: 1.3 で descender/ascender を確保（日本語の見切れ防止）
-        labelStyle: const TextStyle(height: 1.3),
-        labelPadding: const EdgeInsets.symmetric(horizontal: 6),
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-        // 既定の 48px タップ領域インフレを切る。チップ自身の padding で十分なため
-        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-        selected: selected,
-        onSelected: (_) => onTap(),
+      child: Material(
+        color: selected ? scheme.secondaryContainer : scheme.surface,
+        shape: StadiumBorder(
+          side: BorderSide(
+            color: selected ? Colors.transparent : scheme.outline,
+          ),
+        ),
+        child: InkWell(
+          onTap: onTap,
+          customBorder: const StadiumBorder(),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            child: Text(
+              label,
+              style: base.copyWith(
+                color: selected ? scheme.onSecondaryContainer : scheme.onSurfaceVariant,
+                fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }
