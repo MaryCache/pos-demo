@@ -29,6 +29,25 @@ class _ProductGridState extends State<ProductGrid> {
   /// null = 全部、非null = 絞り込み中のカテゴリ名。
   String? _selectedCategory;
 
+  /// カテゴリ選択チップ。Material3 既定だと CJK フォントで縦文字メトリクスが詰まり
+  /// ラベルが見切れることがあるため、行高さ・内部 padding・タップ領域を明示する。
+  Widget _categoryChip(String label, bool selected, VoidCallback onTap) {
+    return Padding(
+      padding: const EdgeInsets.only(right: 8),
+      child: ChoiceChip(
+        label: Text(label),
+        // height: 1.3 で descender/ascender を確保（日本語の見切れ防止）
+        labelStyle: const TextStyle(height: 1.3),
+        labelPadding: const EdgeInsets.symmetric(horizontal: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        // 既定の 48px タップ領域インフレを切る。チップ自身の padding で十分なため
+        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        selected: selected,
+        onSelected: (_) => onTap(),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final catalog = context.watch<CatalogModel>();
@@ -49,28 +68,15 @@ class _ProductGridState extends State<ProductGrid> {
         if (byCategory.isNotEmpty)
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
             child: Row(
               children: [
-                // 「全部」チップ
-                Padding(
-                  padding: const EdgeInsets.only(right: 8),
-                  child: ChoiceChip(
-                    label: const Text('全部'),
-                    selected: _selectedCategory == null,
-                    onSelected: (_) => setState(() => _selectedCategory = null),
-                  ),
-                ),
+                _categoryChip('全部', _selectedCategory == null,
+                    () => setState(() => _selectedCategory = null)),
                 // カテゴリごとのチップ（出現順を保持）
                 for (final category in byCategory.keys)
-                  Padding(
-                    padding: const EdgeInsets.only(right: 8),
-                    child: ChoiceChip(
-                      label: Text(category),
-                      selected: _selectedCategory == category,
-                      onSelected: (_) => setState(() => _selectedCategory = category),
-                    ),
-                  ),
+                  _categoryChip(category, _selectedCategory == category,
+                      () => setState(() => _selectedCategory = category)),
               ],
             ),
           ),
